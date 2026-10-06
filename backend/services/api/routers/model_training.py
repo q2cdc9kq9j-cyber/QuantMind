@@ -3705,6 +3705,11 @@ def _read_stock_pred_history(
                                   OR UPPER(CAST({sym_col} AS VARCHAR)) LIKE 'SH900%'
                                   OR UPPER(CAST({sym_col} AS VARCHAR)) LIKE 'SZ200%'
                                   OR UPPER(CAST({sym_col} AS VARCHAR)) LIKE 'BJ%'
+                                  OR UPPER(CAST({sym_col} AS VARCHAR)) LIKE '000%.SH'
+                                  OR UPPER(CAST({sym_col} AS VARCHAR)) LIKE '900%.SH'
+                                  OR UPPER(CAST({sym_col} AS VARCHAR)) LIKE '399%.SZ'
+                                  OR UPPER(CAST({sym_col} AS VARCHAR)) LIKE '200%.SZ'
+                                  OR UPPER(CAST({sym_col} AS VARCHAR)) LIKE '%.BJ'
                               )
                         )
                         SELECT td, sc, rk, tot FROM d
