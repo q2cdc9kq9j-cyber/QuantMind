@@ -9,19 +9,37 @@ import pytest
 
 from backend.services.simulation.services import redis_series_quote as quote_mod
 from backend.services.simulation.services.redis_series_quote import (
+    candidate_series_keys,
     fetch_series_ticks,
+    legacy_series_key_for,
     parse_series_member,
     series_key_for,
 )
 
 
-def test_series_key_uses_prefix_format():
-    assert series_key_for("600036.SH") == "market:series:SH600036"
-    assert series_key_for("SH600036") == "market:series:SH600036"
+def test_series_key_uses_suffix_format():
+    assert series_key_for("600036.SH") == "market:series:600036.SH"
+    assert series_key_for("SH600036") == "market:series:600036.SH"
     assert series_key_for("0700.HK") == "market:series:0700.HK"
     assert series_key_for("HK00700") == "market:series:HK00700"
     assert series_key_for("AAPL") == "market:series:AAPL"
     assert series_key_for("not-a-code-!!!") is None
+
+
+def test_legacy_series_key_for_old_prefix_compat():
+    assert legacy_series_key_for("600036.SH") == "market:series:SH600036"
+    assert legacy_series_key_for("SH600036") == "market:series:SH600036"
+    # 非 A 股无新老之分
+    assert legacy_series_key_for("AAPL") is None
+    assert legacy_series_key_for("not-a-code-!!!") is None
+
+
+def test_candidate_series_keys_new_first():
+    assert candidate_series_keys("600036.SH") == [
+        "market:series:600036.SH",
+        "market:series:SH600036",
+    ]
+    assert candidate_series_keys("AAPL") == ["market:series:AAPL"]
 
 
 def test_parse_fresh_tick():

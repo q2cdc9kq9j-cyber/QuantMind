@@ -710,11 +710,16 @@ async def stock_signal_overlay(
     sym = symbol.upper().strip()
     if not _SYMBOL_RE.match(sym):
         raise HTTPException(status_code=400, detail=f"非法代码 {sym}")
-    prefix = f"{sym.split('.')[1]}{sym.split('.')[0]}"  # 600519.SH -> SH600519
+    # 输入仅接受后缀正典（_SYMBOL_RE）；engine_signal_scores.symbol 历史存在
+    # 纯数字（script_runner 主写链路）/前缀（realtime_contract 原样透传）/后缀
+    # 三种写法，三候选兼容读，返回口径保持后缀。
+    code, market = sym.split(".")
+    candidates = (sym, code, f"{market}{code}")
 
     from datetime import timedelta as _td
 
     async with get_session() as session:
+        from sqlalchemy import bindparam as _bindparam
         from sqlalchemy import text as _text
 
         start = _date.today() - _timedelta(days=days * 2)
@@ -723,10 +728,10 @@ async def stock_signal_overlay(
                 _text(
                     "SELECT trade_date, fusion_score, signal_side, model_version "
                     "FROM engine_signal_scores "
-                    "WHERE tenant_id = :tid AND symbol = :s AND trade_date >= :start "
+                    "WHERE tenant_id = :tid AND symbol IN :s AND trade_date >= :start "
                     "ORDER BY trade_date"
-                ),
-                {"tid": "default", "s": prefix, "start": start},
+                ).bindparams(_bindparam("s", expanding=True)),
+                {"tid": "default", "s": list(candidates), "start": start},
             )
         ).fetchall()
 

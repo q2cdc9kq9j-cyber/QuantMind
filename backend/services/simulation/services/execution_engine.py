@@ -414,8 +414,10 @@ return tostring(granted)
             from sqlalchemy import text
             from backend.shared.stock_utils import StockCodeUtil
 
-            # stock_daily_latest 存 prefix 格式（SH600519），下单可能传 suffix（600519.SH）
-            db_symbol = StockCodeUtil.to_prefix(symbol) or symbol
+            # stock_daily_latest 已收敛为 suffix 正典（600519.SH），老 prefix 行读兼容
+            db_suffix = StockCodeUtil.normalize(symbol) or symbol
+            db_prefix = StockCodeUtil.to_prefix(symbol) or symbol
+            db_symbols = [db_suffix] if db_suffix == db_prefix else [db_suffix, db_prefix]
 
             query_with_limits = text(
                 """
@@ -426,8 +428,13 @@ return tostring(granted)
                 """
             )
             try:
-                result = await self.db.execute(query_with_limits, {"symbol": db_symbol})
-                row = result.fetchone()
+                result = None
+                row = None
+                for _sym in db_symbols:
+                    result = await self.db.execute(query_with_limits, {"symbol": _sym})
+                    row = result.fetchone()
+                    if row:
+                        break
                 if row:
                     hfq_close = float(row[0])
                     adj_factor = float(row[1] or 1.0)
@@ -459,10 +466,15 @@ return tostring(granted)
                     ORDER BY trade_date DESC LIMIT 1
                     """
                 )
-                legacy_result = await self.db.execute(
-                    query_legacy, {"symbol": db_symbol}
-                )
-                legacy_row = legacy_result.fetchone()
+                legacy_result = None
+                legacy_row = None
+                for _sym in db_symbols:
+                    legacy_result = await self.db.execute(
+                        query_legacy, {"symbol": _sym}
+                    )
+                    legacy_row = legacy_result.fetchone()
+                    if legacy_row:
+                        break
                 if legacy_row:
                     hfq_close = float(legacy_row[0])
                     adj_factor = float(legacy_row[1] or 1.0)
