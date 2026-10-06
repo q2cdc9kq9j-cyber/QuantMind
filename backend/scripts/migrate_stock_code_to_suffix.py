@@ -65,16 +65,16 @@ async def migrate_pg(dry_run: bool) -> dict[str, int]:
                 new = to_suffix(old)
                 if not new:
                     continue
-                if not dry_run:
-                    await session.execute(
-                        text(f'UPDATE "{table}" SET "{col}" = :new WHERE "{col}" = :old'),
-                        {"new": new, "old": old},
-                    )
                 cnt = (await session.execute(
                     text(f'SELECT COUNT(*) AS c FROM "{table}" WHERE "{col}" = :old'),
                     {"old": old},
                 )).mappings().first()
                 n += int(cnt["c"]) if cnt else 0
+                if not dry_run:
+                    await session.execute(
+                        text(f'UPDATE "{table}" SET "{col}" = :new WHERE "{col}" = :old'),
+                        {"new": new, "old": old},
+                    )
             updated[f"{table}.{col}"] = n
             print(f"  PG {table}.{col}: {len(rows)} 个不同值，共 {n} 行 -> 后缀")
         if not dry_run:
