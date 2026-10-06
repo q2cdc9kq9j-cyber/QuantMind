@@ -38,7 +38,7 @@ export const TrainingDataSourceCards: React.FC<Props> = ({
       <div className="flex items-center gap-2 mb-2.5">
         <Database size={15} className="text-indigo-500" />
         <span className="text-sm font-bold text-slate-800">因子数据源</span>
-        <span className="text-[11px] text-slate-400">决定可用因子清单、覆盖起点与默认勾选；MCP 训练与前端共用同一款认源</span>
+        <span className="text-[11px] text-slate-400">决定可用因子清单、覆盖起点与默认勾选</span>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {sources.map((item) => {
@@ -72,7 +72,7 @@ export const TrainingDataSourceCards: React.FC<Props> = ({
                   )}
                   {active && item.published && (
                     <span className="px-1.5 py-0.5 rounded-md bg-blue-50 border border-blue-200 text-blue-600 text-[10px] font-bold">
-                      平台默认 · MCP 同源
+                      平台默认
                     </span>
                   )}
                 </span>
