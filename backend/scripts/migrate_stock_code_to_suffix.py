@@ -134,29 +134,29 @@ def migrate_redis(dry_run: bool, delete_old: bool) -> dict[str, int]:
                     host=host, port=port, db=db, password=password,
                     socket_connect_timeout=5, decode_responses=False,
                 )
-            for pattern in ("market:snapshot:*", "market:series:*", "stock:*"):
-                for raw in client.scan_iter(match=pattern, count=1000):
-                    key = raw.decode() if isinstance(raw, bytes) else str(raw)
-                    new_key = _new_redis_key(key)
-                    if not new_key or new_key == key:
-                        stats["skipped"] += 1
-                        continue
-                    if client.exists(new_key):
-                        stats["skipped"] += 1
-                        continue
-                    print(f"  Redis {label}/db{db}: {key} -> {new_key}")
-                    stats["copied"] += 1
-                    if dry_run:
-                        continue
-                    ttl = client.pttl(key)
-                    blob = client.dump(key)
-                    client.restore(new_key, max(ttl, 0), blob, replace=False)
-                    if delete_old:
-                        client.delete(key)
-                        stats["deleted"] += 1
-            client.close()
-        except Exception as exc:
-            print(f"Redis {label}/db{db} 跳过: {exc}")
+                for pattern in ("market:snapshot:*", "market:series:*", "stock:*"):
+                    for raw in client.scan_iter(match=pattern, count=1000):
+                        key = raw.decode() if isinstance(raw, bytes) else str(raw)
+                        new_key = _new_redis_key(key)
+                        if not new_key or new_key == key:
+                            stats["skipped"] += 1
+                            continue
+                        if client.exists(new_key):
+                            stats["skipped"] += 1
+                            continue
+                        print(f"  Redis {label}/db{db}: {key} -> {new_key}")
+                        stats["copied"] += 1
+                        if dry_run:
+                            continue
+                        ttl = client.pttl(key)
+                        blob = client.dump(key)
+                        client.restore(new_key, max(ttl, 0), blob, replace=False)
+                        if delete_old:
+                            client.delete(key)
+                            stats["deleted"] += 1
+                client.close()
+            except Exception as exc:
+                print(f"Redis {label}/db{db} 跳过: {exc}")
     return stats
 
 
