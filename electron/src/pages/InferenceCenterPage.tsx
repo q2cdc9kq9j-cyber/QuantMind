@@ -44,7 +44,7 @@ import { InferenceHistoryPanel } from '../components/inference/InferenceHistoryP
 import { useAppSelector } from '../store';
 import { selectCurrentMarket } from '../store/slices/uiSlice';
 import { getMarketConfig } from '../config/marketConfig';
-import { normalizeStockCode, splitPrefixCode, toSuffixCode } from '../utils/portfolioUtils';
+import { normalizeSymbol, splitPrefixCode, toSuffixCode } from '../utils/portfolioUtils';
 import { stockListService, Stock } from '../services/stockListService';
 
 const { Text } = Typography;
@@ -152,8 +152,9 @@ export const InferenceCenterPage: React.FC = () => {
   }, [inputCode, showCodeSuggestions]);
 
   const handleSelectSuggestion = (stock: Stock) => {
-    // 本地索引 symbol 为后缀式(600000.SH)，统一转前缀式(SH600000)
-    const normalized = normalizeStockCode(`${stock.market}${stock.code}`);
+    // 本地索引 symbol 已是后缀式(600000.SH)；market 为纯市场前缀(BJ/SH/SZ)时拼接得前缀式，
+    // 统一经 normalizeSymbol 归一为后缀式。优先直接用 symbol，避免 market 口径变化导致拼接错误。
+    const normalized = normalizeSymbol(stock.symbol || `${stock.market}${stock.code}`);
     setShowCodeSuggestions(false);
     setCodeSuggestions([]);
     handleCommitSingleCode(normalized);
@@ -518,7 +519,7 @@ export const InferenceCenterPage: React.FC = () => {
 
   const handleCommitSingleCode = (raw: string) => {
     if (!raw.trim()) return;
-    const normalized = normalizeStockCode(raw.trim());
+    const normalized = normalizeSymbol(raw.trim());
     setSymbol(normalized);
     setInputCode(normalized);
     handleRunSingleStockInference(normalized);

@@ -124,13 +124,13 @@ export const resolveCode = (entryKey: string | null, pos: RawPosition): string =
         key,
     ];
     for (const candidate of candidates) {
-        // 持仓键可能带方向后缀（如 SH600036::long / ::short），先剥离再归一化
+        // 持仓键可能带方向后缀（如 600036.SH::long / ::short），先剥离再归一化
         const text = String(candidate || '').trim().split('::')[0].trim();
         if (!text) continue;
         if (text === '0' && String(pos.symbol || '').trim()) continue;
-        return normalizeStockCode(text);
+        return normalizeSymbol(text);
     }
-    return normalizeStockCode(key.split('::')[0]) || '--';
+    return normalizeSymbol(key.split('::')[0]) || '--';
 };
 
 /**

@@ -15,7 +15,7 @@
 import axios, { AxiosInstance } from 'axios';
 import { SERVICE_URLS } from '../config/services';
 import { authService } from '../features/auth/services/authService';
-import { normalizeStockCode } from '../utils/portfolioUtils';
+import { normalizeSymbol } from '../utils/portfolioUtils';
 
 // ============================================================================
 // 类型定义
@@ -587,8 +587,8 @@ class BacktestService {
       .map((item) => item.trim())
       .filter(Boolean);
     if (!symbols.length) return 'csi300';
-    // 后缀/前缀/裸码统一归一为前缀式（SH600000），空格拼接，供 qlib universe 使用
-    return symbols.map((sym) => normalizeStockCode(sym)).join(' ');
+    // 后缀/前缀/裸码统一归一为后缀式（600000.SH），空格拼接，供 qlib universe 使用
+    return symbols.map((sym) => normalizeSymbol(sym)).join(' ');
   }
 
   /**

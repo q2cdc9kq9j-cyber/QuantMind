@@ -37,7 +37,6 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { adminService } from '../services/adminService';
 import type { AdminModelFeatureCatalog, AdminModelFeatureCategory, AdminModelFeatureItem } from '../types';
-import { normalizeStockCode } from '../../../utils/portfolioUtils';
 
 const { Title, Text } = Typography;
 
@@ -299,9 +298,11 @@ export const AdminFeatureCatalog: React.FC = () => {
   // ─── 自定义因子导入（JSON / CSV 上传）─────────────────────────────────────
 
   const normalizeImportMarkets = (v: unknown): string[] => {
+    // 市场枚举（CN/HK/US/CRYPTO/FUTURES/CUSTOM）只需大写去空格，禁止走股票代码归一
+    const upper = (x: unknown) => String(x ?? '').trim().toUpperCase();
     const raw: string[] = Array.isArray(v)
-      ? v.map(x => normalizeStockCode(String(x)))
-      : String(v ?? '').split(/[,;|，；、\s]+/).map(x => normalizeStockCode(x));
+      ? v.map(upper)
+      : String(v ?? '').split(/[,;|，；、\s]+/).map(upper);
     const cleaned = raw.filter(x => ALL_MARKETS.includes(x));
     return cleaned.length === ALL_MARKETS.length ? [] : cleaned;
   };
