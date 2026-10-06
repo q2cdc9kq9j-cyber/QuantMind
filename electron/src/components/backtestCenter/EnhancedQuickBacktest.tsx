@@ -490,13 +490,13 @@ export const EnhancedQuickBacktest: React.FC = () => {
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-gray-700">基准指数</label>
                   <select
-                    value={backtestConfig.benchmark_symbol || 'SH000300'}
+                    value={backtestConfig.benchmark_symbol || '000300.SH'}
                     onChange={(e) => updateBacktestConfig({ benchmark_symbol: e.target.value })}
                     className="w-full px-3 py-2 bg-white border border-gray-300 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                   >
-                    <option value="SH000300">沪深300</option>
-                    <option value="SH000905">中证500</option>
-                    <option value="SH000852">中证1000</option>
+                    <option value="000300.SH">沪深300</option>
+                    <option value="000905.SH">中证500</option>
+                    <option value="000852.SH">中证1000</option>
                     <option value="SZ399006">创业板指</option>
                   </select>
                 </div>

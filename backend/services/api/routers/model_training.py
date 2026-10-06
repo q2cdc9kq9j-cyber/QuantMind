@@ -2802,7 +2802,7 @@ def _load_quantdb_stock_names() -> dict[str, str]:
             )
             if symbol_col and name_col:
                 for _, row in df[[symbol_col, name_col]].dropna().iterrows():
-                    sym = StockCodeUtil.to_prefix(str(row[symbol_col]).strip())
+                    sym = StockCodeUtil.normalize(str(row[symbol_col]).strip())
                     nm = str(row[name_col]).strip()
                     if sym and nm:
                         result[sym] = nm
@@ -3011,8 +3011,8 @@ async def get_model_inference_run_detail(
             sym = str(item.get("symbol") or "").strip()
             if not sym:
                 continue
-            prefix = StockCodeUtil.to_prefix(sym)
-            nm = name_map.get(prefix) if prefix else None
+            suffix = StockCodeUtil.normalize(sym)
+            nm = name_map.get(suffix) if suffix else None
             if nm:
                 item["stock_name"] = nm
     except Exception as exc:  # pragma: no cover - 名称兜底失败不影响主流程

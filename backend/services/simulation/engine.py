@@ -635,6 +635,9 @@ class SimulationEngine:
             prefix = StockCodeUtil.to_prefix(sym)
             if prefix and prefix != sym:
                 quotes[prefix] = quote
+            suffix = StockCodeUtil.normalize(sym)
+            if suffix and suffix != sym:
+                quotes[suffix] = quote
         logger.info("SimulationEngine: 本地行情 %d bars", len(bars))
         return quotes
 

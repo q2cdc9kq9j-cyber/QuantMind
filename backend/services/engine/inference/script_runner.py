@@ -166,10 +166,10 @@ def _load_close_price_map(trade_date: str) -> dict[str, float]:
             if not (px > 0) or px != px:  # NaN
                 continue
             try:
-                prefix = StockCodeUtil.to_prefix(raw_sym)
+                norm = StockCodeUtil.normalize(raw_sym)
             except Exception:
-                prefix = str(raw_sym).strip().upper()
-            digits = re.sub(r"\D", "", prefix)
+                norm = str(raw_sym).strip().upper()
+            digits = re.sub(r"\D", "", norm)
             if digits:
                 out[digits] = px
         logger.info(
@@ -1192,14 +1192,14 @@ class InferenceScriptRunner:
             target_norm = set()
             for s in symbols:
                 try:
-                    target_norm.add(StockCodeUtil.to_prefix(s))
+                    target_norm.add(StockCodeUtil.normalize(s))
                 except Exception:
                     target_norm.add(str(s).strip())
             kept = []
             dropped = 0
             for sig in signals:
                 try:
-                    sig_sym = StockCodeUtil.to_prefix(str(sig.get("symbol") or ""))
+                    sig_sym = StockCodeUtil.normalize(str(sig.get("symbol") or ""))
                 except Exception:
                     sig_sym = str(sig.get("symbol") or "")
                 if sig_sym in target_norm:

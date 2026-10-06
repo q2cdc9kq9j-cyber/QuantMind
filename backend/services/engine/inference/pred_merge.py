@@ -45,8 +45,8 @@ def merge_signals_into_pred(
     rows = []
     for d, signals in signals_by_date:
         for s in signals or []:
-            sym = StockCodeUtil.to_prefix(str(s.get("symbol", "")))
-            if not re.match(r"^(SH|SZ|BJ)\d{6}$", sym):
+            sym = StockCodeUtil.normalize(str(s.get("symbol", "")))
+            if not re.match(r"^\d{6}\.(SH|SZ|BJ)$", sym):
                 continue
             try:
                 score = float(s.get("score"))

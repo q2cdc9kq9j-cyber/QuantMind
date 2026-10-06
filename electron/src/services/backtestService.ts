@@ -761,7 +761,7 @@ class BacktestService {
       start_date: config.start_date,
       end_date: config.end_date,
       initial_capital: config.initial_capital,
-      benchmark: config.benchmark_symbol || 'SH000300',
+      benchmark: config.benchmark_symbol || '000300.SH',
       universe: this.buildUniverse(config.symbol),
       // 基础费率，后端会据此计算详细费用
       commission: config.commission ?? 0.00025,
@@ -1006,7 +1006,7 @@ class BacktestService {
           start_date: config.start_date,
           end_date: config.end_date,
           initial_capital: config.initial_capital,
-          benchmark: 'SH000300',
+          benchmark: '000300.SH',
           universe: this.buildUniverse(config.symbol),
           // 简单模式仅支持佣金费率
           commission: 0.00025,
@@ -1083,7 +1083,7 @@ class BacktestService {
       start_date: config.start_date,
       end_date: config.end_date,
       initial_capital: config.initial_capital,
-      benchmark: config.benchmark_symbol || 'SH000300',
+      benchmark: config.benchmark_symbol || '000300.SH',
       universe: this.buildUniverse(config.symbol || ''),
 
       // 使用标准 A 股费率字段

@@ -268,7 +268,8 @@ async def _load_close_price(session, symbol: str) -> float:
         "SELECT close, adj_factor FROM stock_daily_latest "
         "WHERE symbol = :symbol ORDER BY trade_date DESC LIMIT 1"
     )
-    for candidate in (prefix, suffix):
+    # 后缀正典优先，老前缀行兜底（存量表两种口径并存）
+    for candidate in (suffix, prefix):
         result = await session.execute(query, {"symbol": candidate})
         row = result.fetchone()
         if not row:
@@ -388,7 +389,7 @@ async def _run(args: argparse.Namespace) -> int:
             db_manager = get_db_manager()
             async with db_manager.get_master_session() as session:
                 normalized_symbols = {
-                    StockCodeUtil.to_prefix(s) for s in affected_symbols
+                    StockCodeUtil.normalize(s) for s in affected_symbols
                 }
                 if normalized_symbols:
                     rows = (

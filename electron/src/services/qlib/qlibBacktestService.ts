@@ -368,7 +368,7 @@ class QlibBacktestService {
         start_date: config.start_date,
         end_date: config.end_date,
         initial_capital: config.initial_capital,
-        benchmark: config.benchmark_symbol || 'SH000300',
+        benchmark: config.benchmark_symbol || '000300.SH',
         universe: universe,
         open_cost: config.qlib_strategy_params?.buy_cost || config.commission || 0.00025,
         close_cost: config.qlib_strategy_params?.sell_cost || (config.commission ? config.commission * 3 : 0.00075),
@@ -544,7 +544,7 @@ class QlibBacktestService {
             start_date: config.start_date,
             end_date: config.end_date,
             initial_capital: config.initial_capital,
-            benchmark: 'SH000300',
+            benchmark: '000300.SH',
             universe: 'csi300', // 简化处理，实际应解析 config.symbol
             open_cost: config.qlib_strategy_params?.buy_cost || 0.00026,
             close_cost: config.qlib_strategy_params?.sell_cost || 0.00076,
