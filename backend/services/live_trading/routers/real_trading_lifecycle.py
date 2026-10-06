@@ -20,6 +20,7 @@ from backend.services.live_trading.services.manual_execution_service import (
     manual_execution_service,
 )
 from backend.services.simulation.services.simulation_hosted_scheduler import (
+    hosted_trade_enabled,
     run_simulation_cycle_for_active,
 )
 
@@ -411,7 +412,9 @@ async def start_trading(
         # 无可用推理时跳过（不阻断启动），等下一轮推理就绪后由托管调度器自然补跑。
         bootstrap_result = None
         bootstrap_skipped_reason = None
-        if mode == "SIMULATION" and trading_permission != "blocked":
+        if mode == "SIMULATION" and hosted_trade_enabled(
+            {"trading_permission": trading_permission}, exec_config, live_config
+        ):
             if os.getenv("SIM_BOOTSTRAP_FIRST_RUN_ENABLED", "true").strip().lower() == "true":
                 try:
                     bootstrap_lock_key = (
@@ -548,7 +551,9 @@ async def start_trading(
             "trading_permission": trading_permission,
             "signal_readiness": signal_readiness,
             "bootstrap": {
-                "attempted": mode == "SIMULATION" and trading_permission != "blocked",
+                "attempted": mode == "SIMULATION" and hosted_trade_enabled(
+                    {"trading_permission": trading_permission}, exec_config, live_config
+                ),
                 "task_id": (bootstrap_result or {}).get("task_id") if isinstance(bootstrap_result, dict) else None,
                 "status": (bootstrap_result or {}).get("status") if isinstance(bootstrap_result, dict) else None,
                 "filled_count": (bootstrap_result or {}).get("filled_count") if isinstance(bootstrap_result, dict) else None,

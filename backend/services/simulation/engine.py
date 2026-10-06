@@ -65,6 +65,11 @@ _STRATEGY_KWARG_KEYS = (
     "min_score",
     "max_position_pct",
     "lot_size",
+    "custom_weights",
+    "enable_min_score",
+    "renormalize_weights",
+    "deterministic_buy_order",
+    "force_exit_on_limit_down",
 )
 
 
@@ -505,7 +510,7 @@ class SimulationEngine:
             # 尝试从策略存储服务加载
             storage_svc = get_strategy_storage_service()
             strategy = await storage_svc.get(
-                strategy_id=int(strategy_id) if strategy_id.isdigit() else 0,
+                strategy_id=int(strategy_id) if strategy_id.isdigit() else strategy_id,
                 user_id=user_id,
             )
 
@@ -515,8 +520,7 @@ class SimulationEngine:
                 )
                 params = dict(strategy.get("parameters", {}) or {})
                 # 代码里写的 topk/n_drop 补进 parameters（parameters 显式值优先）
-                for key in ("topk", "n_drop", "rebalance_days", "weight_mode",
-                            "min_score", "max_position_pct", "lot_size"):
+                for key in _STRATEGY_KWARG_KEYS:
                     if key not in params and key in code_kwargs:
                         params[key] = code_kwargs[key]
                 config = StrategyConfig(
@@ -528,6 +532,14 @@ class SimulationEngine:
                     lot_size=int(params.get("lot_size", default_lot)),
                     n_drop=int(params.get("n_drop", 0) or 0),
                     rebalance_days=max(1, int(params.get("rebalance_days", 1) or 1)),
+                    enable_min_score=bool(params.get("enable_min_score", False)),
+                    renormalize_weights=bool(params.get("renormalize_weights", False)),
+                    deterministic_buy_order=bool(
+                        params.get("deterministic_buy_order", False)
+                    ),
+                    force_exit_on_limit_down=bool(
+                        params.get("force_exit_on_limit_down", False)
+                    ),
                 )
         except Exception as e:
             logger.warning("SimulationEngine: 加载策略配置失败 %s, 使用默认配置", e)
@@ -550,6 +562,14 @@ class SimulationEngine:
                 config.n_drop = int(params_override["n_drop"])
             if params_override.get("rebalance_days") is not None:
                 config.rebalance_days = max(1, int(params_override["rebalance_days"]))
+            for flag in (
+                "enable_min_score",
+                "renormalize_weights",
+                "deterministic_buy_order",
+                "force_exit_on_limit_down",
+            ):
+                if params_override.get(flag) is not None:
+                    setattr(config, flag, bool(params_override[flag]))
             logger.info(
                 "SimulationEngine: 应用参数覆盖, topk=%d n_drop=%d weight_mode=%s",
                 config.topk,

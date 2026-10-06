@@ -6,7 +6,7 @@ import json
 import logging
 import math
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from datetime import date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -22,6 +22,7 @@ from backend.services.trade_shared.redis_client import RedisClient
 from backend.services.simulation.services.rebalance_job_service import (
     SimulationRebalanceJobService,
 )
+from backend.services.simulation.services.rebalance_calculator import StrategyConfig
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +96,22 @@ def _normalize_live_trade_config(value: Any) -> dict[str, Any]:
 def hosted_cycle_ready(phase: str) -> bool:
     """卖/买分窗时只在 BUY/ALL 跑一整轮：SimulationEngine 是先卖后买原子调仓。"""
     return str(phase or "").upper() in {"BUY", "ALL"}
+
+
+def hosted_trade_enabled(*configs: dict[str, Any] | None) -> bool:
+    """All persisted permission scopes must permit automatic trading."""
+    for config in configs:
+        if not isinstance(config, dict):
+            continue
+        permission = str(config.get("trading_permission") or "").strip().lower()
+        if permission and permission != "trade_enabled":
+            return False
+        enabled = config.get("auto_trade_enabled")
+        if enabled is not None and str(enabled).strip().lower() in {
+            "false", "0", "no", "off",
+        }:
+            return False
+    return True
 
 
 def report_to_hosted_result(report: Any) -> dict[str, Any]:
@@ -179,7 +196,20 @@ async def run_simulation_cycle_for_active(
     from backend.services.simulation.engine import simulation_engine
 
     cfg = _normalize_live_trade_config(live_trade_config)
-    params_override: dict[str, Any] = {}
+    if not hosted_trade_enabled(cfg):
+        return {
+            "task_id": run_id,
+            "status": "skipped",
+            "error": "automatic_trading_disabled",
+            "signal_count": 0,
+            "order_count": 0,
+            "filled_count": 0,
+        }
+    params_override = {
+        field.name: cfg[field.name]
+        for field in fields(StrategyConfig)
+        if cfg.get(field.name) is not None
+    }
     if cfg.get("pool_id"):
         params_override["pool_id"] = cfg["pool_id"]
     signal_run_id, gate_error = await _resolve_hosted_signal_run_id(
@@ -589,6 +619,12 @@ class SimulationHostedScheduler:
             return False
         if str(active_data.get("mode") or "").upper() != "SIMULATION":
             return False
+        if not hosted_trade_enabled(
+            active_data,
+            active_data.get("execution_config"),
+            active_data.get("live_trade_config"),
+        ):
+            return False
 
         parts = key.split(":")
         if len(parts) < 4:
@@ -702,10 +738,8 @@ class SimulationHostedScheduler:
                     result.get("error"),
                 )
                 return False
-            if result.get("status") == "failed" and result.get("error"):
-                err = str(result["error"])
-                if err not in {"无可用信号", "账户不存在"}:
-                    raise RuntimeError(err)
+            if result.get("status") != "succeeded":
+                raise RuntimeError(str(result.get("error") or "simulation cycle failed"))
             logger.info(
                 "simulation hosted cycle finished: tenant=%s user=%s strategy=%s phase=%s task=%s status=%s filled=%s",
                 tenant_id,
