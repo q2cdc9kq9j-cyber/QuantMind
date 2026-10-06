@@ -66,8 +66,7 @@ def iter_targets(roots: list[Path]):
             print(f"根目录不存在，跳过: {root}")
             continue
         yield from sorted(root.rglob("pred.parquet"))
-        for part in sorted(root.rglob("pred_daily/dt=*/data.parquet")):
-            yield part
+        yield from sorted(root.rglob("pred_daily/dt=*/data.parquet"))
 
 
 def main() -> int:
