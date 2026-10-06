@@ -246,12 +246,15 @@ def _to_qmt_symbol(symbol: str) -> str:
             return suffix
     except Exception:  # noqa: BLE001 - 兜底不阻断下单
         pass
-    if raw.startswith(("6", "9")):
-        return f"{raw}.SH"
-    if raw.startswith(("0", "3", "2")):
-        return f"{raw}.SZ"
-    if raw.startswith(("4", "8")):
-        return f"{raw}.BJ"
+    # 回退：仅 6 位纯数字按中枢号段补后缀（60/68/90→SH，00/30/20→SZ，
+    # 83/43/87/88/92→BJ）；to_suffix 优先，中枢未覆盖的号段原样返回不硬判。
+    if len(raw) == 6 and raw.isdigit():
+        if raw.startswith(("60", "68", "90")):
+            return f"{raw}.SH"
+        if raw.startswith(("00", "30", "20")):
+            return f"{raw}.SZ"
+        if raw.startswith(("83", "43", "87", "88", "92")):
+            return f"{raw}.BJ"
     return raw
 
 

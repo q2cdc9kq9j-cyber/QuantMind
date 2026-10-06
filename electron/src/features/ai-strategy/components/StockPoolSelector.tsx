@@ -42,7 +42,7 @@ import {
 import type { UploadFile } from 'antd/es/upload/interface';
 import { StockPoolPickerModal } from '../../../components/backtest/StockPoolPickerModal';
 import { getStockPoolMembers, type StockPoolOption } from '../../../services/stockPoolOptionService';
-import { toSuffixCode } from '../../../utils/portfolioUtils';
+import { normalizeStockCode, toSuffixCode } from '../../../utils/portfolioUtils';
 
 const { Title, Text, Paragraph } = Typography;
 const { Search } = Input;
@@ -181,7 +181,7 @@ export const StockPoolSelector: React.FC<StockPoolSelectorProps> = ({
       return;
     }
 
-    const trimmedSymbol = symbol.trim().toUpperCase();
+    const trimmedSymbol = normalizeStockCode(symbol);
 
     if (selectedSymbols.includes(trimmedSymbol)) {
       message.warning(`股票 ${trimmedSymbol} 已在池中`);
@@ -248,7 +248,7 @@ export const StockPoolSelector: React.FC<StockPoolSelectorProps> = ({
     }
 
     const validSymbols = importedData
-      .map(s => s.trim().toUpperCase())
+      .map(s => normalizeStockCode(s))
       .filter(s => s.length > 0);
 
     const uniqueSymbols = [...new Set([...selectedSymbols, ...validSymbols])].slice(0, maxSymbols);

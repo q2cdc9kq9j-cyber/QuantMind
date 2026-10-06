@@ -23,6 +23,7 @@ from sqlalchemy import text
 from backend.services.trade_shared.trade_config import settings
 from backend.shared.auth import get_internal_call_secret
 from backend.shared.database_manager_v2 import get_session
+from backend.shared.stock_utils import StockCodeUtil
 
 logger = logging.getLogger(__name__)
 
@@ -1026,15 +1027,8 @@ class TdxBroker(BaseBroker):
         }
 
     def _std_symbol(self, symbol: str) -> str:
-        """补齐标准代码: 600519 -> 600519.SH, 000001 -> 000001.SZ"""
-        s = str(symbol or "").strip()
-        if not s:
-            return s
-        if "." in s:
-            return s.upper()
-        if s.startswith(("6", "9")):
-            return f"{s}.SH"
-        return f"{s}.SZ"
+        """补齐标准代码: 600519 -> 600519.SH, 000001 -> 000001.SZ（行情层后缀口径）。"""
+        return StockCodeUtil.to_suffix(symbol)
 
     async def place_order(
         self,

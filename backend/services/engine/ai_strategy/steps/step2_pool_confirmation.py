@@ -759,12 +759,7 @@ async def _ensure_latest_table_data(session, table_name: str | None = None) -> b
 
 def _to_suffix_symbol(sym: str) -> str:
     """Convert PG internal format (SH600036) to QuantDB suffix format (600036.SH)."""
-    s = sym.upper()
-    if s.startswith("SH") or s.startswith("SZ") or s.startswith("BJ"):
-        return f"{s[2:]}.{s[:2]}"
-    if "." in s:
-        return s
-    return s
+    return StockCodeUtil.to_suffix(sym)
 
 
 def _suffix_matches_exchange(symbol: str, exchange: str) -> bool:

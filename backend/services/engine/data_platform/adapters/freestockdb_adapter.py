@@ -43,6 +43,7 @@ from backend.services.engine.data_platform.base import (
     InvalidFieldRequest,
     OfflineDataSourceAdapter,
 )
+from backend.shared.stock_utils import StockCodeUtil
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +87,10 @@ def _date_to_int(d: date) -> int:
 
 def _to_fsd_code(symbol: str) -> str:
     """SH600036 / 600036.SH -> 600519 纯数字格式（free-stockdb 使用纯数字代码）"""
+    _, num = StockCodeUtil.split_prefix(symbol)
+    if num and num.isdigit():
+        return num
+    # 非标准输入沿用原剥离逻辑
     s = symbol.strip().upper()
     if "." in s:
         return s.split(".", 1)[0]

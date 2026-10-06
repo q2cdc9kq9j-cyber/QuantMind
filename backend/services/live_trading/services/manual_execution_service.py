@@ -77,8 +77,9 @@ def _snapshot_candidate_keys(symbol: str) -> list[str]:
     prefix = StockCodeUtil.to_prefix(str(symbol or "").strip().upper())
     if not prefix:
         return []
-    code = prefix[2:]
-    market = prefix[:2]
+    market, code = StockCodeUtil.split_prefix(prefix)
+    if not market:
+        market, code = prefix[:2], prefix[2:]
     return [
         f"market:snapshot:{prefix.lower()}",
         f"market:snapshot:{prefix}",
@@ -253,14 +254,9 @@ def _to_int(value: Any, default: int = 0) -> int:
 
 
 def _normalize_to_broker_symbol(sym: str) -> str:
-    s = str(sym or "").strip().upper()
-    if s.startswith("SH") and len(s) > 2:
-        return f"{s[2:]}.SH"
-    elif s.startswith("SZ") and len(s) > 2:
-        return f"{s[2:]}.SZ"
-    elif s.startswith("BJ") and len(s) > 2:
-        return f"{s[2:]}.BJ"
-    return s
+    from backend.shared.stock_utils import StockCodeUtil
+
+    return StockCodeUtil.to_suffix(sym)
 
 
 def _manual_task_agent_protect_price_ratio() -> float:

@@ -44,7 +44,7 @@ import { InferenceHistoryPanel } from '../components/inference/InferenceHistoryP
 import { useAppSelector } from '../store';
 import { selectCurrentMarket } from '../store/slices/uiSlice';
 import { getMarketConfig } from '../config/marketConfig';
-import { normalizeStockCode, toSuffixCode } from '../utils/portfolioUtils';
+import { normalizeStockCode, splitPrefixCode, toSuffixCode } from '../utils/portfolioUtils';
 import { stockListService, Stock } from '../services/stockListService';
 
 const { Text } = Typography;
@@ -135,8 +135,9 @@ export const InferenceCenterPage: React.FC = () => {
     }
     const timer = setTimeout(() => {
       try {
-        // 输入已是前缀式(如 SH600036)时取纯数字部分匹配，兼容本地 code 字段
-        const digits = kw.replace(/^(SH|SZ|BJ)/i, '').replace(/[^\dA-Za-z]/g, '');
+        // 前缀式/后缀式/裸码统一走 splitPrefixCode 取裸码部分，兼容本地 code 字段
+        const [, bare] = splitPrefixCode(kw);
+        const digits = bare.replace(/[^\dA-Za-z]/g, '');
         const results = stockListService.isLoaded()
           ? stockListService.search(kw, 8).length
             ? stockListService.search(kw, 8)

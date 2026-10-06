@@ -101,9 +101,14 @@ class RemoteRedisDataSource(DataSourceAdapter):
         symbol_key_count = 3
         for n in normalized_map.keys():
             # n 已经是 SH600000 格式
-            prefix = n[:2].lower() # sh
-            code = n[2:] # 600000
-            legacy = f"{code}.{n[:2].upper()}" # 600000.SH
+            market, code = StockCodeUtil.split_prefix(n)
+            if not market:
+                prefix = n[:2].lower()  # sh
+                code = n[2:]  # 600000
+                legacy = f"{code}.{n[:2].upper()}"  # 600000.SH
+            else:
+                prefix = market.lower()  # sh
+                legacy = f"{code}.{market}"  # 600000.SH
 
             pipeline_keys.append(f"market:snapshot:{prefix}{code}")
             pipeline_keys.append(f"market:snapshot:{n}")
@@ -313,18 +318,24 @@ class RemoteRedisDataSource(DataSourceAdapter):
                     snap_symbol = key.removeprefix("market:snapshot:")
                     if len(snap_symbol) < 3:
                         continue
-                    prefix = snap_symbol[:2].upper()
-                    code = snap_symbol[2:]
-                    mapped_market = (
-                        "SH" if prefix == "SH" else ("SZ" if prefix == "SZ" else "BJ")
-                    )
-                    result.append(
-                        {
-                            "symbol": f"{code}.{mapped_market}",
-                            "code": code,
-                            "market": mapped_market,
-                        }
-                    )
+                    snap_market, snap_code = StockCodeUtil.split_prefix(snap_symbol)
+                    if snap_market:
+                        result.append(
+                            {
+                                "symbol": f"{snap_code}.{snap_market}",
+                                "code": snap_code,
+                                "market": snap_market,
+                            }
+                        )
+                    else:
+                        # 未知市场不硬判 BJ，原样透传
+                        result.append(
+                            {
+                                "symbol": snap_symbol,
+                                "code": snap_symbol,
+                                "market": "",
+                            }
+                        )
                 elif key.startswith("stock:"):
                     code_market = key.removeprefix("stock:")
                     parts = code_market.split(".")

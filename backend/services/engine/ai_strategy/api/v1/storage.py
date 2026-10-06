@@ -58,12 +58,16 @@ def _trace_id(request: Request | None) -> str | None:
 
 
 def _to_qlib_instrument(symbol: str) -> str:
+    from backend.shared.stock_utils import StockCodeUtil
+
     s = (symbol or "").strip()
     if not s:
         return ""
+    canonical = StockCodeUtil.to_prefix(s)
+    if len(canonical) == 8 and canonical[:2] in ("SH", "SZ", "BJ") and canonical[2:].isdigit():
+        return canonical
+    # 非标准尾巴沿用原清洗逻辑
     s_upper = s.upper()
-    if len(s_upper) == 8 and (s_upper[:2] in ("SZ", "SH")) and s_upper[2:].isdigit():
-        return s_upper
     if "." in s_upper:
         base, suffix = s_upper.split(".", 1)
         base = base.strip()
@@ -78,11 +82,17 @@ def _to_qlib_instrument(symbol: str) -> str:
 
 
 def _qlib_to_db_code(symbol: str) -> str:
-    s = (symbol or "").strip().upper()
+    from backend.shared.stock_utils import StockCodeUtil
+
+    s = (symbol or "").strip()
     if not s:
         return ""
-    if len(s) == 8 and (s[:2] in ("SZ", "SH")) and s[2:].isdigit():
-        return f"{s[2:]}.{s[:2]}"
+    canonical = StockCodeUtil.to_suffix(s)
+    base, dot, market = canonical.partition(".")
+    if dot and market in ("SH", "SZ", "BJ") and len(base) == 6 and base.isdigit():
+        return canonical
+    # 非标准输入沿用原清洗（短码补零等）
+    s = s.upper()
     if "." in s:
         base, suffix = s.split(".", 1)
         base = base.strip()

@@ -26,6 +26,7 @@ from backend.services.engine.data_platform.base import (
 )
 from backend.services.engine.data_platform.models import OHLCV_COLUMNS
 from backend.services.engine.data_platform.quantdb_hub import QuantDBDataHub
+from backend.shared.stock_utils import StockCodeUtil
 
 logger = logging.getLogger(__name__)
 
@@ -425,20 +426,8 @@ class QuantDBLocalAdapter(OfflineDataSourceAdapter):
 
     @staticmethod
     def _to_qdb_symbol(symbol: str) -> str:
-        """内部格式 -> QuantDB suffix 格式 600036.SH"""
-        s = symbol.strip().upper()
-        if "." in s:
-            return s
-        if s.startswith("SH") or s.startswith("SZ") or s.startswith("BJ"):
-            return f"{s[2:]}.{s[:2]}"
-        if s.isdigit():
-            if s.startswith(("6", "9")):
-                return f"{s}.SH"
-            if s.startswith(("0", "3", "2")):
-                return f"{s}.SZ"
-            if s.startswith(("4", "8")):
-                return f"{s}.BJ"
-        return s
+        """内部格式 -> QuantDB suffix 格式 600036.SH（委托中枢，号段以中枢为准）。"""
+        return StockCodeUtil.to_suffix(symbol)
 
     @staticmethod
     def _infer_exchange(symbol: str) -> str:

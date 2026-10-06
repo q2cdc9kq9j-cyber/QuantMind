@@ -105,8 +105,9 @@ def _snapshot_keys(symbol: str) -> list[str]:
     if prefix:
         keys.append(f"market:snapshot:{prefix.lower()}")
         keys.append(f"market:snapshot:{prefix}")
-        code = prefix[2:]
-        market = prefix[:2]
+        market, code = StockCodeUtil.split_prefix(prefix)
+        if not market:
+            market, code = prefix[:2], prefix[2:]
         keys.append(f"stock:{code}.{market}")
     if suffix:
         keys.append(f"market:snapshot:{suffix}")

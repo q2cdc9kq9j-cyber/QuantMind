@@ -13,6 +13,7 @@ import { OverviewTab } from '../components/OverviewTab';
 import { FinancialsTab, ValuationTab, ChipFlowTab, MarginTab, SentimentTab, HoldersTab } from '../components/tabs/P2Tabs';
 import { NewsTab } from '../components/tabs/NewsTab';
 import { L2FeatureCard } from '../components/L2FeatureCard';
+import { normalizeStockCode } from '../../../utils/portfolioUtils';
 
 type DetailTab = 'overview' | 'financials' | 'valuation' | 'chipflow' | 'margin' | 'sentiment' | 'holders' | 'news' | 'l2';
 
@@ -95,7 +96,7 @@ export default function StockTerminalPage() {
       return;
     }
     let cancelled = false;
-    const code = selected.symbol.split('.')[0];
+    const code = normalizeStockCode(selected.symbol);
     modelTrainingService
       .getStockInferenceHistory(code, 750, modelId || undefined)
       .then((resp) => {
@@ -135,7 +136,7 @@ export default function StockTerminalPage() {
     import('../../../services/userStockPoolService')
       .then(({ listUserPoolSymbols, USER_POOL_FAVORITES }) =>
         listUserPoolSymbols(USER_POOL_FAVORITES).then((symbols) => {
-          if (!cancelled) setWatchlist(new Set(symbols.map((s) => String(s).toUpperCase())));
+          if (!cancelled) setWatchlist(new Set(symbols.map((s) => normalizeStockCode(String(s)))));
         }),
       )
       .catch(() => {

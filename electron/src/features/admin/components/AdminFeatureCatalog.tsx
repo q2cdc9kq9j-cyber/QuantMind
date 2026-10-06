@@ -37,6 +37,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { adminService } from '../services/adminService';
 import type { AdminModelFeatureCatalog, AdminModelFeatureCategory, AdminModelFeatureItem } from '../types';
+import { normalizeStockCode } from '../../../utils/portfolioUtils';
 
 const { Title, Text } = Typography;
 
@@ -299,8 +300,8 @@ export const AdminFeatureCatalog: React.FC = () => {
 
   const normalizeImportMarkets = (v: unknown): string[] => {
     const raw: string[] = Array.isArray(v)
-      ? v.map(x => String(x).toUpperCase().trim())
-      : String(v ?? '').split(/[,;|，；、\s]+/).map(x => x.toUpperCase().trim());
+      ? v.map(x => normalizeStockCode(String(x)))
+      : String(v ?? '').split(/[,;|，；、\s]+/).map(x => normalizeStockCode(x));
     const cleaned = raw.filter(x => ALL_MARKETS.includes(x));
     return cleaned.length === ALL_MARKETS.length ? [] : cleaned;
   };

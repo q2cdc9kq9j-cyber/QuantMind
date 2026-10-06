@@ -10,7 +10,7 @@
  *   2. K 线上用竖线标出 run 的基准日（inference_date），看得出这个排名是基于哪天数据算的。
  *
  * 代码格式（仓库分层口径）：排名行给的是前缀式 SH600519；/market/kline 要后缀式
- * 600519.SH，分数接口要裸数字 600519，两次转换都走 portfolioUtils 的统一工具。
+ * 600519.SH，分数接口走 normalizeStockCode 归一（后端兼容前缀/后缀/裸码全口径）。
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Empty, Modal, Spin } from 'antd';
@@ -18,7 +18,7 @@ import { KlineChart, type IndicatorConfig } from '../../stock-terminal/component
 import type { KlineBar } from '../../stock-terminal/types';
 import { stockTerminalService } from '../../stock-terminal/services/stockTerminalService';
 import { modelTrainingService } from '../../../services/modelTrainingService';
-import { toSuffixCode } from '../../../utils/portfolioUtils';
+import { toSuffixCode, normalizeStockCode } from '../../../utils/portfolioUtils';
 
 /** 与个股终端一致：主图开 MA、副图只留成交量 */
 const KLINE_CONFIG: IndicatorConfig = { ma: true, subplots: ['vol'] };
@@ -45,7 +45,7 @@ export function StockMiniTerminalModal({ open, onClose, symbol, name, modelId, a
   const [loading, setLoading] = useState(false);
 
   const suffixSymbol = useMemo(() => toSuffixCode(symbol), [symbol]);
-  const bareCode = useMemo(() => suffixSymbol.split('.')[0], [suffixSymbol]);
+  const bareCode = useMemo(() => normalizeStockCode(symbol), [symbol]);
 
   useEffect(() => {
     if (!open || !symbol) return;
