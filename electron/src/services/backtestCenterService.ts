@@ -7,6 +7,10 @@
 import axios, { AxiosInstance } from 'axios';
 import { SERVICE_URLS } from '../config/services';
 import { authService } from '../features/auth/services/authService';
+import { toQlibCode } from '../utils/portfolioUtils';
+
+/** 内置池关键词 / 全局池引用直接透传，不做代码转换 */
+const PASSTHROUGH_UNIVERSES = new Set(['all', 'all_a', 'csi300', 'csi500', 'csi800', 'csi1000', 'sse50', 'gem', 'star']);
 
 // API基础配置
 const resolveApiBaseURL = () => `${String(SERVICE_URLS.ENGINE_SERVICE || '').replace(/\/+$/, '')}/api/v1/qlib`;
@@ -185,8 +189,10 @@ class BacktestCenterService {
     const universe = symbols.length
       ? symbols
           .map((sym) => {
-            const parts = sym.split('.');
-            return parts.length === 2 ? `${parts[1]}${parts[0]}` : sym;
+            // pool: 引用与指数/池关键词透传；后缀/前缀/裸码经中枢归一转 qlib 小写口径
+            const s = sym.trim();
+            if (s.toLowerCase().startsWith('pool:') || PASSTHROUGH_UNIVERSES.has(s.toLowerCase())) return s;
+            return toQlibCode(s);
           })
           .join(' ')
       : 'csi300';

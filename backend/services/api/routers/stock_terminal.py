@@ -87,28 +87,28 @@ def reset_terminal_caches() -> None:
 
 def _classify_board(symbol: str) -> str:
     """按代码归类市场板块：SH 主板/科创板、SZ 主板/创业板、BJ 北交所。"""
-    code = symbol.split(".")[0]
-    if symbol.endswith(".SH"):
+    from backend.shared.stock_utils import StockCodeUtil
+
+    norm = StockCodeUtil.normalize(symbol)
+    code, market = StockCodeUtil.split_suffix(norm)
+    if market == "SH":
         if code.startswith("68"):
             return "科创板"
         return "沪市主板"
-    if symbol.endswith(".SZ"):
+    if market == "SZ":
         if code.startswith("30"):
             return "创业板"
         return "深市主板"
-    if symbol.endswith(".BJ"):
+    if market == "BJ":
         return "北交所"
     return "其他"
 
 
 def _exchange_of(symbol: str) -> str:
-    if symbol.endswith(".SH"):
-        return "SH"
-    if symbol.endswith(".SZ"):
-        return "SZ"
-    if symbol.endswith(".BJ"):
-        return "BJ"
-    return ""
+    from backend.shared.stock_utils import StockCodeUtil
+
+    _, market = StockCodeUtil.split_suffix(StockCodeUtil.normalize(symbol))
+    return market
 
 
 def _latest_partition(base: Path) -> Path | None:

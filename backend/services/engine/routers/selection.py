@@ -462,12 +462,18 @@ def _top_stock_by_industry(
 
 
 def _is_main_board_code(symbol: str) -> bool:
-    s = symbol.split(".")[0] if "." in symbol else symbol
+    from backend.shared.stock_utils import StockCodeUtil
+
+    code, _ = StockCodeUtil.split_suffix(symbol)
+    s = code or symbol
     return s.startswith(("600", "601", "603", "605", "000", "001", "002"))
 
 
 def _is_star_market_code(symbol: str) -> bool:
-    s = symbol.split(".")[0] if "." in symbol else symbol
+    from backend.shared.stock_utils import StockCodeUtil
+
+    code, _ = StockCodeUtil.split_suffix(symbol)
+    s = code or symbol
     return s.startswith(("688", "300", "301"))
 
 
@@ -493,12 +499,15 @@ def _cap_bucket(total_mv: float | None) -> str:
 
 def _board_type(symbol: str) -> str:
     """板块类型：沪深主板 / 创业板 / 科创板 / 北交所 / 其他。"""
-    s = symbol.split(".")[0] if "." in symbol else symbol
+    from backend.shared.stock_utils import StockCodeUtil
+
+    code, _ = StockCodeUtil.split_suffix(symbol)
+    s = code or symbol
     if s.startswith("688"):
         return "科创板"
     if s.startswith(("300", "301")):
         return "创业板"
-    if s.startswith(("8", "4", "92")) and len(s) == 6 and not s.startswith(("00", "30", "60")):
+    if len(s) == 6 and not s.startswith(("00", "30", "60")):
         # 北交所：43/83/87/88/92 开头
         if s.startswith(("43", "83", "87", "88", "92")):
             return "北交所"

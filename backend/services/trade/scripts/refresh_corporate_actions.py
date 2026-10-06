@@ -388,8 +388,14 @@ async def _run(args: argparse.Namespace) -> int:
         if args.skip_apply and not affected_accounts and affected_symbols:
             db_manager = get_db_manager()
             async with db_manager.get_master_session() as session:
+                # 持仓 lots 新写后缀、老行为前缀：双变体匹配
                 normalized_symbols = {
                     StockCodeUtil.normalize(s) for s in affected_symbols
+                }
+                normalized_symbols |= {
+                    StockCodeUtil.to_prefix(s)
+                    for s in affected_symbols
+                    if StockCodeUtil.to_prefix(s)
                 }
                 if normalized_symbols:
                     rows = (

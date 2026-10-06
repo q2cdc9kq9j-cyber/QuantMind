@@ -22,7 +22,7 @@ import {
     resolveMetricNumber, 
     extractModelType, 
 } from '../../modelRegistryUtils';
-import { normalizeSymbol } from '../../../utils/portfolioUtils';
+import { normalizeSymbol, splitSuffixCode } from '../../../utils/portfolioUtils';
 import type {
     ManualExecutionLogEntry,
     ManualExecutionLogSnapshot,
@@ -1280,7 +1280,7 @@ const ManualTaskPage: React.FC<ManualTaskPageProps> = ({ tradingMode, onBack }) 
                                                 {preview.skipped_items.length > 0 ? preview.skipped_items.map((item, idx) => (
                                                     <div key={idx} className="p-2.5 rounded-xl bg-white border border-rose-100/40 flex items-center gap-3 shadow-sm shadow-rose-50/50">
                                                         <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center font-mono text-[10px] font-black text-rose-400">
-                                                            {item.symbol.slice(0, 2)}
+                                                            {splitSuffixCode(item.symbol)[1].slice(0, 2)}
                                                         </div>
                                                         <div className="flex-1 min-w-0">
                                                             <div className="text-[11px] font-bold text-gray-900">{normalizeSymbol(item.symbol)}</div>

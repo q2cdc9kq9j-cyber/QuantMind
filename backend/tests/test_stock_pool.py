@@ -804,8 +804,9 @@ class TestPoolSignalFilter:
 
     def test_intersect_symbols(self):
         assert filter_intersect(["SH600036", "SZ000001"], ["600036.SH"]) == ["SH600036"]
-        assert filter_intersect(["SH600036"], None) == ["SH600036"]
-        assert filter_intersect(None, ["600036.SH"]) == ["SH600036"]
+        # 单边为 None 时归一为后缀正典（双口径输入均可互查）
+        assert filter_intersect(["SH600036"], None) == ["600036.SH"]
+        assert filter_intersect(None, ["600036.SH"]) == ["600036.SH"]
         assert filter_intersect(["SH600036"], ["SZ000001"]) == []
 
 

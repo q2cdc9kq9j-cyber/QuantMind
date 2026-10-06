@@ -102,6 +102,17 @@ export const toSuffixCode = (raw: string): string => {
 };
 
 /**
+ * 后缀/前缀/裸码 -> Qlib 口径全小写（600519.SH -> sh600519），Qlib 层边界唯一出口。
+ * 与后端 StockCodeUtil.to_qlib 同口径；指数/池关键词（csi300/all 等）与 pool: 引用
+ * 不在此处理——调用方须先分流透传，禁止把关键词喂进来转小写。
+ */
+export const toQlibCode = (raw: string): string => {
+    const [code, market] = splitSuffixCode(raw);
+    if (code && market) return `${market.toLowerCase()}${code}`;
+    return normalizeSymbol(raw).toLowerCase();
+};
+
+/**
  * 拆分前缀式为 [市场, 裸码]，替代散落的 slice(0,2)/slice(2)/split('.') 手写切片。
  * 非标准代码返回 ['', 去空格大写原值]，调用方自行回退。
  */

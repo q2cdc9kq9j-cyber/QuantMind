@@ -171,8 +171,8 @@ export const StockCodeInput: React.FC<Props> = ({
     setSearchQuery(newValue);
     setShowDropdown(true);
 
-    // 如果是直接输入标准格式的代码（如 000001.SZ，大小写均可），立即更新
-    if (/^\d{6}\.(SZ|SH|BJ)$/i.test(newValue)) {
+    // 直接输入标准代码（后缀 000001.SZ 或前缀 SZ000001，大小写均可）立即更新为后缀式
+    if (/^(\d{6}\.(SZ|SH|BJ)|(SH|SZ|BJ)\d{6})$/i.test(newValue)) {
       onChange(toSuffixCode(newValue));
     }
   };

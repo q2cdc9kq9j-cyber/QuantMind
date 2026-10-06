@@ -836,7 +836,7 @@ return 0
                     sym = key.split("::", 1)[0]
                     last_px = 0.0
                     try:
-                        for cand in (sym, StockCodeUtil.to_prefix(sym)):
+                        for cand in (StockCodeUtil.to_suffix(sym), StockCodeUtil.to_prefix(sym)):
                             r = (
                                 await session.execute(
                                     _text(

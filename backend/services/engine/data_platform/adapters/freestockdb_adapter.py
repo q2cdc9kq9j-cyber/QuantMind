@@ -100,14 +100,16 @@ def _to_fsd_code(symbol: str) -> str:
 
 
 def _from_fsd_code(code: str) -> str:
-    """600519 -> SH600519 / 000001 -> SZ000001 (内部前缀格式)"""
+    """600519 -> 600519.SH / 000001 -> 000001.SZ（后缀正典；读端经 StockCodeUtil 双收兼容老前缀）。"""
+    from backend.shared.stock_utils import StockCodeUtil
+
     c = code.strip()
     if c.startswith("6") or c.startswith("9"):
-        return f"SH{c}"
+        return StockCodeUtil.to_suffix(f"SH{c}")
     if c.startswith("0") or c.startswith("3") or c.startswith("2"):
-        return f"SZ{c}"
+        return StockCodeUtil.to_suffix(f"SZ{c}")
     if c.startswith("4") or c.startswith("8"):
-        return f"BJ{c}"
+        return StockCodeUtil.to_suffix(f"BJ{c}")
     return c
 
 

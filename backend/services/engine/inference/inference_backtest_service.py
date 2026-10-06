@@ -332,13 +332,14 @@ def _load_index_close(
     if not trade_dates:
         return pd.Series(dtype=float)
 
-    # 归一化指数代码 → 000001.SH
-    sym = str(index_symbol).lower().strip().replace("sh", "").replace("sz", "")
-    if "." in sym:
-        num, mkt = sym.split(".")
-        sym = f"{num}.{mkt.upper()}"
-    else:
-        sym = f"{sym}.SH"
+    # 归一化指数代码 → 000001.SH（前后缀/裸码双收，经中枢归一）
+    from backend.shared.stock_utils import StockCodeUtil
+
+    sym = StockCodeUtil.normalize(str(index_symbol).strip())
+    if not sym or "." not in sym:
+        # 非标准指数写法回退原逻辑：去 sh/sz 前缀后补 .SH
+        raw = str(index_symbol).lower().strip().replace("sh", "").replace("sz", "")
+        sym = f"{raw}.SH".upper() if "." not in raw else raw.upper()
 
     try:
         from datetime import date as _date
@@ -370,13 +371,19 @@ def _load_index_close(
 
 def _is_main_board(symbol: str) -> bool:
     """主板判断: 600/601/603/605/000/001/002 开头（含后缀）。"""
-    s = symbol.split(".")[0] if "." in symbol else symbol
+    from backend.shared.stock_utils import StockCodeUtil
+
+    code, _ = StockCodeUtil.split_suffix(symbol)
+    s = code or symbol
     return s.startswith(("600", "601", "603", "605", "000", "001", "002"))
 
 
 def _is_star_market(symbol: str) -> bool:
     """科创板(688)/创业板(300) 判断。"""
-    s = symbol.split(".")[0] if "." in symbol else symbol
+    from backend.shared.stock_utils import StockCodeUtil
+
+    code, _ = StockCodeUtil.split_suffix(symbol)
+    s = code or symbol
     return s.startswith(("688", "300", "301"))
 
 

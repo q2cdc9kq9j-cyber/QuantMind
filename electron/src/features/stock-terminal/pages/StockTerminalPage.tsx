@@ -180,7 +180,7 @@ export default function StockTerminalPage() {
       return;
     }
     let cancelled = false;
-    stockTerminalService.getProfile(selected.symbol, signalDate).then((p) => {
+    stockTerminalService.getProfile(normalizeSymbol(selected.symbol), signalDate).then((p) => {
       if (!cancelled) setProfile(p);
     });
     return () => {
@@ -202,7 +202,7 @@ export default function StockTerminalPage() {
     startD.setFullYear(startD.getFullYear() - 2);
     const iso = (d: Date) => d.toISOString().slice(0, 10);
     stockTerminalService
-      .getDailyKline(selected.symbol, 500, adjust, iso(startD), iso(endD))
+      .getDailyKline(normalizeSymbol(selected.symbol), 500, adjust, iso(startD), iso(endD))
       .then((items) => {
         if (cancelled) return;
         if (period !== 'daily' && items.length) {

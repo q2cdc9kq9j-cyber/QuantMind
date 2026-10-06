@@ -431,10 +431,13 @@ class QuantDBLocalAdapter(OfflineDataSourceAdapter):
 
     @staticmethod
     def _infer_exchange(symbol: str) -> str:
-        """从 symbol 推断交易所。"""
-        if not symbol or "." not in symbol:
+        """从 symbol 推断交易所（先经中枢归一，前后缀双收）。"""
+        from backend.shared.stock_utils import StockCodeUtil
+
+        norm = StockCodeUtil.to_suffix(symbol or "")
+        if not norm or "." not in norm:
             return "unknown"
-        exchange = symbol.split(".")[-1].upper()
+        exchange = norm.split(".")[-1].upper()
         return {"SH": "SSE", "SZ": "SZSE", "BJ": "BSE"}.get(exchange, exchange)
 
 

@@ -475,7 +475,7 @@ export const StockPoolSelector: React.FC<StockPoolSelectorProps> = ({
         <div style={{ maxHeight: 300, overflowY: 'auto' }}>
           <Space size={[8, 8]} wrap>
             {selectedSymbols.map(symbol => {
-              const stockInfo = COMMON_STOCKS.find(s => s.symbol === symbol);
+              const stockInfo = COMMON_STOCKS.find(s => normalizeSymbol(s.symbol) === normalizeSymbol(symbol));
               return (
                 <Tag
                   key={symbol}

@@ -69,7 +69,8 @@ const DashboardPage: React.FC = () => {
             const symbols = await listUserPoolSymbols(USER_POOL_FAVORITES);
             setWatchlist(
                 symbols.map((symbol) => ({
-                    symbol: String(symbol).toUpperCase(),
+                    // 入库即转后缀式，与后端 StockCodeUtil.normalize 同口径
+                    symbol: toSuffixCode(String(symbol)),
                     stockName: null,
                     tags: [],
                 })),
@@ -267,17 +268,17 @@ const DashboardPage: React.FC = () => {
                                         cursor: 'pointer',
                                         borderRadius: 6,
                                         marginBottom: 2,
-                                        background: normalizeSymbol(item.symbol).symbol === symbol ? '#e0f2fe' : 'transparent',
-                                        border: normalizeSymbol(item.symbol).symbol === symbol ? '1px solid #7dd3fc' : '1px solid transparent',
+                                        background: normalizeSymbol(item.symbol).symbol === normalizeSymbol(symbol).symbol ? '#e0f2fe' : 'transparent',
+                                        border: normalizeSymbol(item.symbol).symbol === normalizeSymbol(symbol).symbol ? '1px solid #7dd3fc' : '1px solid transparent',
                                         transition: 'all 0.2s',
                                     }}
                                     onMouseEnter={(e) => {
-                                        if (symbol !== item.symbol) {
+                                        if (normalizeSymbol(symbol).symbol !== normalizeSymbol(item.symbol).symbol) {
                                             e.currentTarget.style.background = '#f8fafc';
                                         }
                                     }}
                                     onMouseLeave={(e) => {
-                                        if (symbol !== item.symbol) {
+                                        if (normalizeSymbol(symbol).symbol !== normalizeSymbol(item.symbol).symbol) {
                                             e.currentTarget.style.background = 'transparent';
                                         }
                                     }}

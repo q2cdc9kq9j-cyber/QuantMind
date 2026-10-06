@@ -258,8 +258,31 @@ def _to_qmt_symbol(symbol: str) -> str:
     return raw
 
 
+def _to_suffix_symbol(qmt_symbol: str) -> str:
+    """QMT 口径 → 内部后缀正典（``600519.SH`` → ``600519.SH``，前后缀双收）。
+
+    QMT 报单/回查的 stock_code 即后缀式（见 _to_qmt_symbol）；回查统一落后缀，
+    与全系统 QuantDB 后缀口径对齐。
+    """
+    from backend.shared.stock_utils import StockCodeUtil
+
+    raw = str(qmt_symbol or "").strip()
+    if not raw:
+        return ""
+    try:
+        norm = StockCodeUtil.to_suffix(raw)
+        if norm:
+            return norm
+    except Exception:  # noqa: BLE001 - 兜底不阻断回查
+        pass
+    return raw.upper()
+
+
 def _to_prefix_symbol(qmt_symbol: str) -> str:
-    """QMT 口径 → 内部前缀式（``600519.SH`` → ``SH600519``）。"""
+    """QMT 口径 → 内部前缀式（``600519.SH`` → ``SH600519``）。
+
+    已废弃：仅过渡期兼容保留，新代码用 _to_suffix_symbol。
+    """
     raw = str(qmt_symbol or "").strip().upper()
     if not raw:
         return ""
@@ -425,7 +448,7 @@ class BigConvertBackend:
             out.append(
                 {
                     "stock_code": stock_code,
-                    "symbol": _to_prefix_symbol(stock_code),
+                    "symbol": _to_suffix_symbol(stock_code),
                     "instrument_name": str(
                         _first_attr(pos, "stock_name", "instrument_name", default="")
                         or ""
@@ -459,7 +482,7 @@ class BigConvertBackend:
             "order_id": str(_first_attr(item, "order_id", default="")),
             "order_sysid": str(_first_attr(item, "order_sysid", default="")),
             "stock_code": stock_code,
-            "symbol": _to_prefix_symbol(stock_code),
+            "symbol": _to_suffix_symbol(stock_code),
             "instrument_name": str(
                 _first_attr(item, "instrument_name", default="") or ""
             ),
@@ -490,7 +513,7 @@ class BigConvertBackend:
             "order_sysid": str(_first_attr(item, "order_sysid", default="")),
             "order_id": str(_first_attr(item, "order_id", default="")),
             "stock_code": stock_code,
-            "symbol": _to_prefix_symbol(stock_code),
+            "symbol": _to_suffix_symbol(stock_code),
             "instrument_name": str(
                 _first_attr(item, "instrument_name", default="") or ""
             ),

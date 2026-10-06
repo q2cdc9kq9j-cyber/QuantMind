@@ -9,6 +9,7 @@ import { csvExporter } from '../../../services/export';
 import { exportTradeRecordsToExcel } from '../../../utils/excelExport';
 import { formatBackendDateTime, formatBackendTime } from '../../../utils/format';
 import type { TradeRecordExportRow } from '../../../utils/excelExport';
+import { normalizeSymbol } from '../../../utils/portfolioUtils';
 
 interface TradingHistoryProps {
     userId: string;
@@ -74,7 +75,9 @@ const buildDateRange = (timeRange: 'today' | 'week' | 'month' | 'all'): OrdersRa
 function inferMarketOfSymbol(symbol: string): string {
     const s = String(symbol || '').toUpperCase().trim();
     if (/^\d{1,5}\.HK$/.test(s)) return 'HK';
+    // A股：后缀式 / 裸码 / 前缀式显式分支
     if (/^\d{6}\.(SH|SZ|BJ)$/.test(s) || /^\d{6}$/.test(s)) return 'CN';
+    if (/^(SH|SZ|BJ)\d{6}$/.test(s)) return 'CN';
     if (/\.(CN|FUT)$/.test(s) || s.includes('(T+D)')) return 'FUTURES';
     if (/^[A-Z0-9]+USDT$/.test(s)) return 'CRYPTO';
     if (/^[A-Z]{1,6}(\.[A-Z]{1,2})?$/.test(s)) return 'US';
@@ -133,9 +136,9 @@ const TradingHistory: React.FC<TradingHistoryProps> = ({ userId, isActive, tradi
             const uniqueCodes = Array.from(new Set(
                 marketFilteredOrders
                     .filter(o => !o.symbol_name)
-                    .map(o => o.symbol)
+                    .map(o => normalizeSymbol(o.symbol))
             ));
-            const codesToFetch = uniqueCodes.filter(code => !stockNamesRef.current[code] && !failedCodesRef.current.has(code));
+            const codesToFetch = uniqueCodes.filter(code => !stockNamesRef.current[normalizeSymbol(code)] && !failedCodesRef.current.has(normalizeSymbol(code)));
 
             if (codesToFetch.length > 0) {
                 try {
@@ -197,7 +200,7 @@ const TradingHistory: React.FC<TradingHistoryProps> = ({ userId, isActive, tradi
                     time: formatBackendTime(order.submitted_at || order.created_at, { withSeconds: true }),
                     direction: String(order.side || '').toLowerCase(),
                     code: order.symbol,
-                    name: order.symbol_name || stockNamesRef.current[order.symbol] || order.symbol,
+                    name: order.symbol_name || stockNamesRef.current[normalizeSymbol(order.symbol)] || order.symbol,
                     quantity: order.quantity,
                     filledQty,
                     price: order.price || 0,

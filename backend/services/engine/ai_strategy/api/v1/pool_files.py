@@ -58,13 +58,13 @@ async def save_pool_file(
                 and canonical[2:].isdigit()
             ):
                 return canonical
-            # 非标准尾巴沿用原清洗逻辑
+            # 非标准尾巴沿用原清洗逻辑（含 BJ 与后缀分支）
             u = s.upper()
             if "." in u:
                 base, suffix = u.split(".", 1)
                 base = base.strip()
                 suffix = suffix.strip()
-                if suffix in ("SZ", "SH") and base.isdigit():
+                if suffix in ("SZ", "SH", "BJ") and base.isdigit():
                     return f"{suffix}{base.zfill(6)}"
             if (u.startswith("SZ") or u.startswith("SH")) and len(u) >= 8:
                 tail = "".join(ch for ch in u[2:] if ch.isdigit())

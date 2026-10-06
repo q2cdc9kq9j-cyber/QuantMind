@@ -103,8 +103,8 @@ export const InferenceCenterPage: React.FC = () => {
   // ─────────────────────────────────────────────────────────────
   // 模块 2：个股推理中心 (Individual Stock Inference) 状态
   // ─────────────────────────────────────────────────────────────
-  const [symbol, setSymbol] = useState('SH600519');
-  const [inputCode, setInputCode] = useState('SH600519');
+  const [symbol, setSymbol] = useState('600519.SH');
+  const [inputCode, setInputCode] = useState('600519.SH');
   const [singleStockModelId, setSingleStockModelId] = useState<string>('');
   const [modelCategoryFilter, setModelCategoryFilter] = useState<'all' | 'dl' | 'tree' | 'ensemble'>('all');
   const [horizon, setHorizon] = useState<number>(5);
@@ -435,7 +435,7 @@ export const InferenceCenterPage: React.FC = () => {
     targetModelId?: string,
     targetHorizon?: number
   ) => {
-    const sym = (targetSymbol || symbol || 'SH600519').trim();
+    const sym = normalizeSymbol((targetSymbol || symbol || '600519.SH').trim());
     // 主模型：显式指定 > 首个勾选模型；勾选的模型集合整体传给后端同时推理
     const mId = targetModelId || singleStockModelId || consensusModelIds[0] || '';
     const hor = targetHorizon || horizon;
@@ -850,7 +850,7 @@ export const InferenceCenterPage: React.FC = () => {
                             {s.name || s.code}
                           </span>
                           <span className="text-[11px] font-mono text-blue-600 shrink-0">
-                            {s.market}{s.code}
+                            {normalizeSymbol(s.symbol || `${s.market}${s.code}`)}
                           </span>
                         </div>
                       ))}

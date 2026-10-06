@@ -15,7 +15,7 @@
 import axios, { AxiosInstance } from 'axios';
 import { SERVICE_URLS } from '../config/services';
 import { authService } from '../features/auth/services/authService';
-import { normalizeSymbol } from '../utils/portfolioUtils';
+import { normalizeSymbol, splitSuffixCode } from '../utils/portfolioUtils';
 
 // ============================================================================
 // 类型定义
@@ -473,8 +473,9 @@ class BacktestService {
 
     const normalizeQty = (symbol: string, qty: number): number => {
       const qtyInt = Math.round(qty);
-      const upper = String(symbol || '').toUpperCase();
-      if ((upper.startsWith('SH') || upper.startsWith('SZ') || upper.startsWith('BJ')) && qtyInt >= 100) {
+      // 先归一为后缀式再判市场，前后缀/裸码都进整手分支
+      const [, market] = splitSuffixCode(symbol);
+      if ((market === 'SH' || market === 'SZ' || market === 'BJ') && qtyInt >= 100) {
         const lotRounded = Math.round(qtyInt / 100) * 100;
         if (Math.abs(qtyInt - lotRounded) <= 2) return lotRounded;
       }

@@ -68,19 +68,24 @@ def _snapshot_candidate_keys(symbol: str) -> list[str]:
     """快照兼容键候选列表（与 stream 服务 remote_redis_source 口径一致）。
 
     快照由第三方推送，历史存在多种键格式，按优先级全路径探测：
-      1. market:snapshot:{小写前缀}（规范，如 market:snapshot:sh600036）
+      0. market:snapshot:{后缀正典}（最高优，如 market:snapshot:600036.SH）
+      1. market:snapshot:{小写前缀}（老规范，如 market:snapshot:sh600036）
       2. market:snapshot:{大写前缀}（大小写容错）
       3. stock:{code}.{MARKET}（Legacy 后缀式，如 stock:600036.SH）
     """
     from backend.shared.stock_utils import StockCodeUtil
 
+    suffix = StockCodeUtil.to_suffix(str(symbol or "").strip().upper())
     prefix = StockCodeUtil.to_prefix(str(symbol or "").strip().upper())
-    if not prefix:
+    if not prefix and not suffix:
         return []
-    market, code = StockCodeUtil.split_prefix(prefix)
+    market, code = StockCodeUtil.split_prefix(prefix or suffix)
     if not market:
-        market, code = prefix[:2], prefix[2:]
-    return [
+        market, code = (prefix or suffix)[:2], (prefix or suffix)[2:]
+    keys: list[str] = []
+    if suffix:
+        keys.append(f"market:snapshot:{suffix}")
+    return keys + [
         f"market:snapshot:{prefix.lower()}",
         f"market:snapshot:{prefix}",
         f"stock:{code}.{market}",

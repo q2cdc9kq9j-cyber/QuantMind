@@ -261,11 +261,14 @@ class MarketDataService {
       }
 
       const searchResp = await this.searchStocks(code.trim(), 10);
+      // 两侧都经 toSuffixCode 归一后再比，前缀/后缀/裸码输入都能命中同一标的
+      const targetSfx = toSuffixCode(code.trim());
+      const targetBare = targetSfx.replace(/\.\w+$/, '');
       const exact = (searchResp.data || []).find((item) => {
-        const symbol = String(item.symbol || '').toUpperCase();
-        const itemCode = String(item.code || '').toUpperCase();
-        const target = code.trim().toUpperCase();
-        return symbol === target || itemCode === target || itemCode.startsWith(target.split('.')[0]);
+        const symbolSfx = toSuffixCode(String(item.symbol || ''));
+        const itemCodeSfx = toSuffixCode(String(item.code || ''));
+        return symbolSfx === targetSfx || itemCodeSfx === targetSfx
+          || itemCodeSfx.replace(/\.\w+$/, '') === targetBare;
       }) || (searchResp.data || [])[0];
 
       if (exact && String(exact.name || '').trim()) {
@@ -290,11 +293,13 @@ class MarketDataService {
       console.error('获取股票详情失败:', error);
       try {
         const searchResp = await this.searchStocks(code.trim(), 10);
+        const targetSfx = toSuffixCode(code.trim());
+        const targetBare = targetSfx.replace(/\.\w+$/, '');
         const exact = (searchResp.data || []).find((item) => {
-          const symbol = String(item.symbol || '').toUpperCase();
-          const itemCode = String(item.code || '').toUpperCase();
-          const target = code.trim().toUpperCase();
-          return symbol === target || itemCode === target || itemCode.startsWith(target.split('.')[0]);
+          const symbolSfx = toSuffixCode(String(item.symbol || ''));
+          const itemCodeSfx = toSuffixCode(String(item.code || ''));
+          return symbolSfx === targetSfx || itemCodeSfx === targetSfx
+            || itemCodeSfx.replace(/\.\w+$/, '') === targetBare;
         }) || (searchResp.data || [])[0];
 
         if (exact && String(exact.name || '').trim()) {
@@ -505,7 +510,7 @@ class MarketDataService {
       return symbol.trim().length === 6;
     }
 
-    // 如果包含点，检查格式
+    // 如果包含点，检查后缀格式
     if (symbol.includes('.')) {
       const parts = symbol.split('.');
       if (parts.length === 2) {
@@ -513,6 +518,11 @@ class MarketDataService {
         const suffix = parts[1].toUpperCase();
         return /^\d{6}$/.test(code) && ['SZ', 'SH', 'BJ'].includes(suffix);
       }
+    }
+
+    // 前缀式（SH600519 / SZ000001 / BJ430001）显式放行
+    if (/^(SH|SZ|BJ)\d{6}$/i.test(symbol.trim())) {
+      return true;
     }
 
     // 中文名称或其他格式都认为有效

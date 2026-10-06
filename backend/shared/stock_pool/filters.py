@@ -74,12 +74,12 @@ def _norm_suffix(symbol: Any) -> str:
 
 
 def _to_prefix(symbol: Any) -> str:
-    """单列归一为前缀式（intersect 单边分支的格式保持用，不做比对）。"""
+    """单列归一为后缀正典式（双口径输入均归一；保留函数名供旧调用兼容）。"""
     raw = str(symbol or "").strip()
     if not raw:
         return ""
     try:
-        return StockCodeUtil.to_prefix(raw)
+        return StockCodeUtil.to_suffix(raw)
     except Exception:  # noqa: BLE001
         return raw
 
