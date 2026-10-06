@@ -99,6 +99,27 @@ def _new_redis_key(key: str) -> str | None:
     return None
 
 
+def _redis_targets() -> list[tuple[str, int, str | None, list[int]]]:
+    """(label, host, port, password, dbs)。行情快照实际在远端全市场库（REMOTE_QUOTE_REDIS_*）。"""
+    targets = [(
+        "local",
+        os.getenv("REDIS_HOST", "localhost"),
+        int(os.getenv("REDIS_PORT", "6379")),
+        os.getenv("REDIS_PASSWORD") or None,
+        list(range(6)),
+    )]
+    remote_host = os.getenv("REMOTE_QUOTE_REDIS_HOST")
+    if remote_host:
+        targets.append((
+            "remote-quote",
+            remote_host,
+            int(os.getenv("REMOTE_QUOTE_REDIS_PORT", "6379")),
+            os.getenv("REMOTE_QUOTE_REDIS_PASSWORD") or None,
+            [int(os.getenv("REMOTE_QUOTE_REDIS_DB", "3"))],
+        ))
+    return targets
+
+
 def migrate_redis(dry_run: bool, delete_old: bool) -> dict[str, int]:
     stats = {"copied": 0, "deleted": 0, "skipped": 0}
     try:
@@ -106,15 +127,13 @@ def migrate_redis(dry_run: bool, delete_old: bool) -> dict[str, int]:
     except ImportError:
         print("redis 包不可用，跳过 Redis 键迁移")
         return stats
-    host = os.getenv("REDIS_HOST", "localhost")
-    port = int(os.getenv("REDIS_PORT", "6379"))
-    password = os.getenv("REDIS_PASSWORD") or None
-    for db in range(6):
-        try:
-            client = redis.Redis(
-                host=host, port=port, db=db, password=password,
-                socket_connect_timeout=5, decode_responses=False,
-            )
+    for label, host, port, password, dbs in _redis_targets():
+        for db in dbs:
+            try:
+                client = redis.Redis(
+                    host=host, port=port, db=db, password=password,
+                    socket_connect_timeout=5, decode_responses=False,
+                )
             for pattern in ("market:snapshot:*", "market:series:*", "stock:*"):
                 for raw in client.scan_iter(match=pattern, count=1000):
                     key = raw.decode() if isinstance(raw, bytes) else str(raw)
@@ -125,7 +144,7 @@ def migrate_redis(dry_run: bool, delete_old: bool) -> dict[str, int]:
                     if client.exists(new_key):
                         stats["skipped"] += 1
                         continue
-                    print(f"  Redis db{db}: {key} -> {new_key}")
+                    print(f"  Redis {label}/db{db}: {key} -> {new_key}")
                     stats["copied"] += 1
                     if dry_run:
                         continue
@@ -137,7 +156,7 @@ def migrate_redis(dry_run: bool, delete_old: bool) -> dict[str, int]:
                         stats["deleted"] += 1
             client.close()
         except Exception as exc:
-            print(f"Redis db{db} 跳过: {exc}")
+            print(f"Redis {label}/db{db} 跳过: {exc}")
     return stats
 
 
