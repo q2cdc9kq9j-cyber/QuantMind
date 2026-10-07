@@ -1388,6 +1388,20 @@ class InferenceScriptRunner:
         return raw, [InferenceScriptRunner._normalize_code(x) for x in raw]
 
     @staticmethod
+    def _exclude_st_enabled() -> bool:
+        """是否在推理信号中剔除 ST/*ST。默认 False = 放开（保留 ST）。
+
+        历史行为是硬编码强制剔除（全市场约 5200 只里约 200 只 ST 被丢弃）。
+        现改为可配置：设置 INFERENCE_EXCLUDE_ST=true 可恢复剔除。
+        """
+        return os.getenv("INFERENCE_EXCLUDE_ST", "false").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+            "on",
+        )
+
+    @staticmethod
     def _is_st_symbol(symbol: str, st_symbols: set[str], st_normalized: set[str] | None = None) -> bool:
         """判断股票代码是否为 ST。"""
         if symbol in st_symbols:
@@ -1417,9 +1431,15 @@ class InferenceScriptRunner:
         if not isinstance(data, list):
             return None
 
-        # 获取 ST 股票列表（预计算标准化代码集合）
-        st_symbols = InferenceScriptRunner._get_st_symbols()
-        st_normalized = {InferenceScriptRunner._normalize_code(s) for s in st_symbols}
+        # 获取 ST 股票列表（预计算标准化代码集合）。
+        # 默认放开 ST（不再剔除）；仅 INFERENCE_EXCLUDE_ST=true 时恢复剔除。
+        exclude_st = InferenceScriptRunner._exclude_st_enabled()
+        st_normalized: set[str] = set()
+        if exclude_st:
+            st_symbols = InferenceScriptRunner._get_st_symbols()
+            st_normalized = {
+                InferenceScriptRunner._normalize_code(s) for s in st_symbols
+            }
 
         valid = []
         for item in data:
@@ -1452,14 +1472,16 @@ class InferenceScriptRunner:
                     if symbol.startswith("399") and symbol.endswith(".SZ"):
                         continue
 
-                    # 4. 排除 ST/*ST 股票（代码匹配 + 名称匹配）
-                    sym_code = InferenceScriptRunner._normalize_code(symbol)
-                    if sym_code and sym_code in st_normalized:
-                        continue
-                    # 名称包含 ST 的也要排除（兜底）
-                    name = str(item.get("name", "")).upper()
-                    if "ST" in name and ("*" in name or name.startswith("ST")):
-                        continue
+                    # 4. 排除 ST/*ST 股票（代码匹配 + 名称匹配）。
+                    #    默认放开；仅 INFERENCE_EXCLUDE_ST=true 时启用。
+                    if exclude_st:
+                        sym_code = InferenceScriptRunner._normalize_code(symbol)
+                        if sym_code and sym_code in st_normalized:
+                            continue
+                        # 名称包含 ST 的也要排除（兜底）
+                        name = str(item.get("name", "")).upper()
+                        if "ST" in name and ("*" in name or name.startswith("ST")):
+                            continue
 
                     valid.append(
                         {

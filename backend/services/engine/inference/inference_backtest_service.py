@@ -63,7 +63,7 @@ class StrategyConfig:
 
     # 过滤开关
     exclude_limit_moves: bool = True  # 涨停买不进/跌停卖不出
-    exclude_st: bool = True  # 剔除 ST
+    exclude_st: bool = False  # 剔除 ST（默认放开，保留 ST）
     main_board_only: bool = True  # 仅主板（600/000 开头）
     use_index_ma20_filter: bool = True  # 大盘跌破 MA20 强制空仓
     index_symbol: str = "sh000001"  # 上证指数
