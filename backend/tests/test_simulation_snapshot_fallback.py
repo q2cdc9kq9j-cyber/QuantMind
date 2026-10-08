@@ -24,6 +24,9 @@ async def test_snapshot_fallback_requests_live_source(
     monkeypatch.setattr(
         redis_series_quote, "fetch_series_ticks", AsyncMock(return_value={})
     )
+    monkeypatch.setattr(
+        redis_series_quote, "fetch_snapshot_tick", AsyncMock(return_value=None)
+    )
     monkeypatch.setenv("SIM_REDIS_QUOTE_MAX_AGE_SEC", "300")
     data = {"current_price": 18.69, "data_source": "remote_redis"}
     if age_seconds is not None:
@@ -80,3 +83,35 @@ async def test_explicit_snapshot_source_bypasses_daily_cache_and_recent_record(
     adapter.fetch_quote.assert_awaited_once_with("603211.SH")
     cache.assert_not_awaited()
     recent.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_direct_snapshot_does_not_require_http(monkeypatch):
+    monkeypatch.setattr(
+        redis_series_quote, "fetch_series_ticks", AsyncMock(return_value={})
+    )
+    monkeypatch.setattr(
+        redis_series_quote,
+        "fetch_snapshot_tick",
+        AsyncMock(
+            return_value={
+                "price": 18.69,
+                "timestamp": 1_000_000,
+                "age_s": 20,
+                "price_source": "redis_snapshot",
+                "recent_volume": None,
+            }
+        ),
+    )
+    engine = SimulationExecutionEngine(db=SimpleNamespace(), manager=SimpleNamespace())
+    monkeypatch.setattr(
+        engine, "_enrich_cn_limits", lambda *_: (False, False, False, None, None)
+    )
+    http = AsyncMock(side_effect=AssertionError("direct snapshot must not need HTTP"))
+    monkeypatch.setattr(engine, "_http_client", http)
+    snapshot = await engine._latest_price("603211.SH", user_id=1001)
+    assert snapshot.price == 18.69
+    assert snapshot.price_source == "redis_snapshot"
+    assert snapshot.quote_age_seconds == 20
+    assert snapshot.recent_volume is None
+    http.assert_not_awaited()

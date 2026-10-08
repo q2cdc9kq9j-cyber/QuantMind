@@ -331,6 +331,24 @@ return tostring(granted)
         except Exception as e:
             logger.warning("Failed to fetch redis series quote for %s: %s", symbol, e)
 
+        # 快照独立于 WS 订阅生成的序列，直接读取，避免漏订阅股票没有取价源。
+        try:
+            from backend.services.simulation.services.redis_series_quote import (
+                fetch_snapshot_tick,
+            )
+
+            tick = await fetch_snapshot_tick(symbol)
+            if tick:
+                logger.info(
+                    "Redis snapshot price for %s: %.4f (age=%.0fs)",
+                    symbol,
+                    tick["price"],
+                    tick["age_s"],
+                )
+                return self.market_snapshot_from_tick(symbol, tick)
+        except Exception as e:
+            logger.warning("Failed to fetch redis snapshot quote for %s: %s", symbol, e)
+
         # Level 1: 实时行情服务。A 股显式读 Redis 快照，不能回退到 QuantDB 日线。
         try:
             client = await self._http_client()

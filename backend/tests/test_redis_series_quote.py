@@ -11,6 +11,7 @@ from backend.services.simulation.services import redis_series_quote as quote_mod
 from backend.services.simulation.services.redis_series_quote import (
     candidate_series_keys,
     fetch_series_tick,
+    fetch_snapshot_tick,
     fetch_series_ticks,
     legacy_series_key_for,
     parse_series_member,
@@ -174,3 +175,50 @@ async def test_stale_suffix_falls_back_to_fresh_legacy(monkeypatch, batch):
         assert client.zrevrange.await_args_list[1].args[0] == "market:series:SH603968"
     assert tick["price"] == 12
     assert tick["age_s"] == 20
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("invalid", ["stale", "future", "zero", "bad_timestamp"])
+async def test_direct_snapshot_skips_invalid_suffix_and_checks_legacy(
+    monkeypatch, invalid
+):
+    now = 1_000_000.0
+    monkeypatch.setattr(quote_mod.time, "time", lambda: now)
+    bad = {"Now": "10", "timestamp": str(now - 400)}
+    if invalid == "future":
+        bad["timestamp"] = str(now + 20)
+    elif invalid == "zero":
+        bad = {"Now": "0", "timestamp": str(now - 10)}
+    elif invalid == "bad_timestamp":
+        bad["timestamp"] = "invalid"
+    fresh = {"Now": "12", "timestamp": str(now - 20), "Volume": "100"}
+    pipe = MagicMock()
+    pipe.execute = AsyncMock(return_value=[bad, fresh, {}, {}])
+    client = MagicMock()
+    client.pipeline.return_value = pipe
+    monkeypatch.setattr(quote_mod, "_get_client", lambda: client)
+    monkeypatch.setattr(
+        "backend.shared.quote_redis_config.sim_redis_quote_max_age_sec", lambda: 300
+    )
+    tick = await fetch_snapshot_tick("603968.SH")
+    assert tick["price"] == 12
+    assert tick["age_s"] == 20
+    assert tick["recent_volume"] is None
+    assert tick["price_source"] == "redis_snapshot"
+
+
+@pytest.mark.asyncio
+async def test_direct_snapshot_rejects_missing_or_stale_data(monkeypatch):
+    now = 1_000_000.0
+    monkeypatch.setattr(quote_mod.time, "time", lambda: now)
+    pipe = MagicMock()
+    pipe.execute = AsyncMock(
+        return_value=[{"Now": "12", "timestamp": str(now - 600)}, {}, {}, {}]
+    )
+    client = MagicMock()
+    client.pipeline.return_value = pipe
+    monkeypatch.setattr(quote_mod, "_get_client", lambda: client)
+    monkeypatch.setattr(
+        "backend.shared.quote_redis_config.sim_redis_quote_max_age_sec", lambda: 300
+    )
+    assert await fetch_snapshot_tick("603968.SH") is None
