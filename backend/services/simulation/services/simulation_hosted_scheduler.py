@@ -673,37 +673,29 @@ class SimulationHostedScheduler:
             trade_date=decision.trade_date,
             phase=decision.phase,
         )
-        await SimulationRebalanceJobService.ensure_job(
-            job_id=task_id,
-            tenant_id=tenant_id,
-            user_id=user_id,
-            strategy_id=strategy_id,
-            schedule_type=str(live_trade_config.get("schedule_type") or "interval"),
-            # TIMESTAMP WITHOUT TIME ZONE：必须写 naive 上海墙钟，否则 asyncpg 报
-            # offset-naive/aware 混算，整轮托管调仓会被 skip。
-            planned_run_at=now.astimezone(_SH_TZ).replace(microsecond=0, tzinfo=None),
-            window_seconds=max(
-                30, _to_int(live_trade_config.get("trigger_window_seconds"), 90)
-            ),
-            idempotency_key=lock_key,
-        )
-        await SimulationRebalanceJobService.mark_ready(task_id)
         try:
             if not self.redis.client.set(lock_key, task_id, ex=36 * 3600, nx=True):
-                await SimulationRebalanceJobService.mark_skipped(
-                    task_id,
-                    last_error="idempotency lock already exists for this execution window",
-                )
+                # 重复轮询不是作业跳过：不能覆盖成功/运行状态或移动执行窗口。
                 return False
         except Exception:
             logger.warning("failed to write simulation hosted lock: %s", lock_key)
-            await SimulationRebalanceJobService.mark_skipped(
-                task_id,
-                last_error="failed to acquire distributed execution lock",
-            )
             return False
 
         try:
+            await SimulationRebalanceJobService.ensure_job(
+                job_id=task_id,
+                tenant_id=tenant_id,
+                user_id=user_id,
+                strategy_id=strategy_id,
+                schedule_type=str(live_trade_config.get("schedule_type") or "interval"),
+                # TIMESTAMP WITHOUT TIME ZONE：写入 naive 上海墙钟。
+                planned_run_at=now.astimezone(_SH_TZ).replace(microsecond=0, tzinfo=None),
+                window_seconds=max(
+                    30, _to_int(live_trade_config.get("trigger_window_seconds"), 90)
+                ),
+                idempotency_key=lock_key,
+            )
+            await SimulationRebalanceJobService.mark_ready(task_id)
             await SimulationRebalanceJobService.mark_started(task_id)
             result = await run_simulation_cycle_for_active(
                 tenant_id=tenant_id,
@@ -756,13 +748,15 @@ class SimulationHostedScheduler:
             )
             return True
         except Exception as exc:
-            await SimulationRebalanceJobService.mark_finished(
-                task_id,
-                status="failed",
-                last_error=str(exc),
-            )
             try:
-                self.redis.client.delete(lock_key)
-            except Exception:
-                pass
+                await SimulationRebalanceJobService.mark_finished(
+                    task_id,
+                    status="failed",
+                    last_error=str(exc),
+                )
+            finally:
+                try:
+                    self.redis.client.delete(lock_key)
+                except Exception:
+                    pass
             raise

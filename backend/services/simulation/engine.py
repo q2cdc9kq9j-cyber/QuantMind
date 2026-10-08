@@ -614,9 +614,14 @@ class SimulationEngine:
     ) -> tuple[dict[str, Quote], dict[str, dict[str, Any]]]:
         from backend.services.simulation.services.redis_series_quote import (
             fetch_series_ticks,
+            fetch_snapshot_ticks,
         )
 
-        ticks = await fetch_series_ticks(symbols)
+        ticks = dict(await fetch_series_ticks(symbols))
+        missing = [symbol for symbol in dict.fromkeys(symbols) if symbol not in ticks]
+        if missing:
+            # 全市场快照不依赖 WS 订阅落序列；与手动撮合共用新鲜度检查。
+            ticks.update(await fetch_snapshot_ticks(missing))
         quotes: dict[str, Quote] = {}
         indexed_ticks: dict[str, dict[str, Any]] = {}
         for symbol, tick in ticks.items():

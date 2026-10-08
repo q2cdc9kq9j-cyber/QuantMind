@@ -12,6 +12,7 @@ from backend.services.simulation.services.redis_series_quote import (
     candidate_series_keys,
     fetch_series_tick,
     fetch_snapshot_tick,
+    fetch_snapshot_ticks,
     fetch_series_ticks,
     legacy_series_key_for,
     parse_series_member,
@@ -222,3 +223,26 @@ async def test_direct_snapshot_rejects_missing_or_stale_data(monkeypatch):
         "backend.shared.quote_redis_config.sim_redis_quote_max_age_sec", lambda: 300
     )
     assert await fetch_snapshot_tick("603968.SH") is None
+
+
+@pytest.mark.asyncio
+async def test_batch_snapshots_keep_symbol_boundaries_and_freshness(monkeypatch):
+    now = 1_000_000.0
+    monkeypatch.setattr(quote_mod.time, "time", lambda: now)
+    monkeypatch.setattr(
+        "backend.shared.quote_redis_config.sim_redis_quote_max_age_sec", lambda: 300
+    )
+    fresh = {"Now": "12", "timestamp": str(now - 20)}
+    stale = {"Now": "40", "timestamp": str(now - 600)}
+    pipe = MagicMock()
+    # A 股每只 4 个候选键，美股 1 个；仅第一只与末尾美股有新鲜快照。
+    pipe.execute = AsyncMock(return_value=[{}, fresh, {}, {}, stale, {}, {}, {}, fresh])
+    client = MagicMock()
+    client.pipeline.return_value = pipe
+    monkeypatch.setattr(quote_mod, "_get_client", lambda: client)
+    ticks = await fetch_snapshot_ticks(["603968.SH", "600036.SH", "AAPL", "603968.SH"])
+    assert set(ticks) == {"603968.SH", "AAPL"}
+    assert ticks["603968.SH"]["age_s"] == 20
+    assert ticks["AAPL"]["price"] == 12
+    client.pipeline.assert_called_once()
+    assert pipe.hgetall.call_count == 9

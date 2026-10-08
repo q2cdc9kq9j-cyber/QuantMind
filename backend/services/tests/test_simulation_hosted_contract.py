@@ -119,6 +119,77 @@ def _scheduler(payload):
 
 
 @pytest.mark.asyncio
+async def test_repeat_poll_preserves_successful_job_and_does_not_execute_again():
+    scheduler = _scheduler({})
+    scheduler.redis.client.set.side_effect = [True, False]
+    jobs = MagicMock()
+    for name in (
+        "ensure_job",
+        "mark_ready",
+        "mark_started",
+        "mark_finished",
+        "mark_skipped",
+    ):
+        setattr(jobs, name, AsyncMock())
+    cycle = AsyncMock(return_value={"status": "succeeded", "filled_count": 1})
+    now = datetime(2026, 6, 2, 14, 50, tzinfo=ZoneInfo("Asia/Shanghai"))
+    with (
+        patch.object(hosted, "SimulationRebalanceJobService", jobs),
+        patch.object(
+            hosted,
+            "_should_trigger",
+            return_value=hosted.SimulationScheduleDecision(
+                True, "ALL", "2026-06-02", "ready"
+            ),
+        ),
+        patch.object(hosted, "run_simulation_cycle_for_active", cycle),
+    ):
+        assert await scheduler._process_key(
+            "trade:active_strategy:default:10000001", now=now
+        )
+        assert not await scheduler._process_key(
+            "trade:active_strategy:default:10000001", now=now
+        )
+    cycle.assert_awaited_once()
+    for name in ("ensure_job", "mark_ready", "mark_started", "mark_finished"):
+        getattr(jobs, name).assert_awaited_once()
+    assert jobs.mark_finished.await_args.kwargs["status"] == "succeeded"
+    jobs.mark_skipped.assert_not_awaited()
+    scheduler.redis.client.delete.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("lock_error", [False, True])
+async def test_unacquired_lock_leaves_existing_job_untouched(lock_error):
+    scheduler = _scheduler({})
+    if lock_error:
+        scheduler.redis.client.set.side_effect = RuntimeError("redis unavailable")
+    else:
+        scheduler.redis.client.set.return_value = False
+    jobs = MagicMock()
+    cycle = AsyncMock()
+    with (
+        patch.object(hosted, "SimulationRebalanceJobService", jobs),
+        patch.object(
+            hosted,
+            "_should_trigger",
+            return_value=hosted.SimulationScheduleDecision(
+                True, "ALL", "2026-06-02", "ready"
+            ),
+        ),
+        patch.object(hosted, "run_simulation_cycle_for_active", cycle),
+    ):
+        triggered = await scheduler._process_key(
+            "trade:active_strategy:default:10000001",
+            now=datetime.now(ZoneInfo("Asia/Shanghai")),
+        )
+    assert not triggered
+    assert jobs.mock_calls == []
+    cycle.assert_not_awaited()
+    scheduler.redis.client.delete.assert_not_called()
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "payload",
     [

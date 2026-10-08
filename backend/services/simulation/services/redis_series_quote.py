@@ -151,55 +151,71 @@ def _get_client():
 
 async def fetch_snapshot_tick(symbol: str) -> dict[str, Any] | None:
     """直读同一远端 Redis 的快照；不依赖 HTTP、数据库或 WS 订阅落序列。"""
+    return (await fetch_snapshot_ticks([symbol])).get(symbol)
+
+
+async def fetch_snapshot_ticks(symbols: list[str]) -> dict[str, dict[str, Any]]:
+    """批量直读实时快照，共用一次 pipeline，供托管全市场选股使用。"""
     from backend.shared.quote_redis_config import sim_redis_quote_max_age_sec
     from backend.shared.stock_utils import StockCodeUtil
 
-    normalized = StockCodeUtil.normalize(symbol)
-    keys = [f"market:snapshot:{normalized}"]
-    _, exchange = StockCodeUtil.split_suffix(normalized)
-    if exchange in {"SH", "SZ", "BJ"}:
-        prefix = StockCodeUtil.to_prefix(normalized)
-        keys.extend(
-            [
-                f"market:snapshot:{prefix}",
-                f"market:snapshot:{prefix.lower()}",
-                f"stock:{normalized}",
-            ]
-        )
+    if not symbols:
+        return {}
+    candidates: list[tuple[str, list[str]]] = []
+    for symbol in dict.fromkeys(symbols):
+        normalized = StockCodeUtil.normalize(symbol)
+        keys = [f"market:snapshot:{normalized}"]
+        _, exchange = StockCodeUtil.split_suffix(normalized)
+        if exchange in {"SH", "SZ", "BJ"}:
+            prefix = StockCodeUtil.to_prefix(normalized)
+            keys.extend(
+                [
+                    f"market:snapshot:{prefix}",
+                    f"market:snapshot:{prefix.lower()}",
+                    f"stock:{normalized}",
+                ]
+            )
+        candidates.append((symbol, keys))
     try:
         client = _get_client()
         pipe = client.pipeline(transaction=False)
-        for key in keys:
-            pipe.hgetall(key)
+        for _, keys in candidates:
+            for key in keys:
+                pipe.hgetall(key)
         rows = await pipe.execute()
         now_ts = time.time()
-        for data in rows:
-            if not data:
-                continue
-            try:
-                ts = float(data.get("timestamp") or 0)
-            except (TypeError, ValueError):
-                continue
-            payload = {
-                "price": data.get("Now") or data.get("price"),
-                "open": data.get("Open"),
-                "high": data.get("High"),
-                "low": data.get("Low"),
-                "volume": data.get("Volume"),
-                "amount": data.get("Amount"),
-                "source": data.get("source") or "remote_redis",
-            }
-            tick = parse_series_member(
-                json.dumps(payload), ts, now_ts, sim_redis_quote_max_age_sec()
-            )
-            if tick is not None:
-                tick["price_source"] = "redis_snapshot"
-                # 单个累计量快照不能推算窗口内成交量。
-                tick["recent_volume"] = None
-                return tick
+        max_age_sec = sim_redis_quote_max_age_sec()
+        result: dict[str, dict[str, Any]] = {}
+        offset = 0
+        for symbol, keys in candidates:
+            for data in rows[offset : offset + len(keys)]:
+                if not data:
+                    continue
+                try:
+                    ts = float(data.get("timestamp") or 0)
+                except (TypeError, ValueError):
+                    continue
+                payload = {
+                    "price": data.get("Now") or data.get("price"),
+                    "open": data.get("Open"),
+                    "high": data.get("High"),
+                    "low": data.get("Low"),
+                    "volume": data.get("Volume"),
+                    "amount": data.get("Amount"),
+                    "source": data.get("source") or "remote_redis",
+                }
+                tick = parse_series_member(json.dumps(payload), ts, now_ts, max_age_sec)
+                if tick is not None:
+                    tick["price_source"] = "redis_snapshot"
+                    # 单个累计量快照不能推算窗口内成交量。
+                    tick["recent_volume"] = None
+                    result[symbol] = tick
+                    break
+            offset += len(keys)
+        return result
     except Exception as exc:
-        logger.warning("[RedisSnapshotQuote] 读取 %s 失败: %s", symbol, exc)
-    return None
+        logger.warning("[RedisSnapshotQuote] 批量读取失败: %s", exc)
+    return {}
 
 
 async def fetch_series_tick(
