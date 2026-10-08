@@ -173,22 +173,19 @@ async def fetch_series_tick(
         client = _get_client()
         if client is None:
             return None
-        rows = await client.zrevrange(key, 0, 0, withscores=True)
-        if not rows:
-            # 老前缀键兼容（迁移窗口）：新键未命中则试老键
-            legacy_key = legacy_series_key_for(symbol)
-            if legacy_key:
-                rows = await client.zrevrange(legacy_key, 0, 0, withscores=True)
+        now_ts = time.time()
+        for candidate in candidate_series_keys(symbol):
+            rows = await client.zrevrange(candidate, 0, 0, withscores=True)
+            if rows:
+                member, score = rows[0]
+                tick = parse_series_member(member, float(score), now_ts, max_age_sec)
+                if tick is not None:
+                    return tick
     except Exception as exc:  # noqa: BLE001
         logger.warning("[RedisSeriesQuote] 读取 %s 失败: %s", key, exc)
         return None
-    if not rows:
-        return None
-    member, score = rows[0]
-    tick = parse_series_member(member, float(score), time.time(), max_age_sec)
-    if tick is None:
-        logger.debug("[RedisSeriesQuote] %s 无新鲜 tick", key)
-    return tick
+    logger.debug("[RedisSeriesQuote] %s 无新鲜 tick", key)
+    return None
 
 
 async def fetch_series_ticks(
@@ -248,17 +245,16 @@ async def fetch_series_ticks(
     for idx, (symbol, _) in enumerate(keyed):
         latest_rows = pipe_result[idx * 2]
         window_rows = pipe_result[idx * 2 + 1]
-        if not latest_rows:
-            # 新键无数据：记下走老前缀键第二轮（迁移窗口兼容）
+        tick = _build_tick(
+            latest_rows, window_rows, now_ts, max_age_sec, volume_window_sec
+        )
+        if tick is None:
+            # 新键缺失、过期或价格无效时，继续尝试迁移窗口内的老键。
             legacy_key = legacy_series_key_for(symbol)
             if legacy_key:
                 missing.append((symbol, legacy_key))
             continue
-        tick = _build_tick(
-            latest_rows, window_rows, now_ts, max_age_sec, volume_window_sec
-        )
-        if tick is not None:
-            result[symbol] = tick
+        result[symbol] = tick
     if missing:
         # 第二轮：老前缀键回退（仅缺失 symbol，避免常态双倍 pipeline）
         try:

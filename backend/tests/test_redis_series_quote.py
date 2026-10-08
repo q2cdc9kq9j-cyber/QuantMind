@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from backend.services.simulation.services import redis_series_quote as quote_mod
 from backend.services.simulation.services.redis_series_quote import (
     candidate_series_keys,
+    fetch_series_tick,
     fetch_series_ticks,
     legacy_series_key_for,
     parse_series_member,
@@ -146,3 +147,30 @@ async def test_fetch_series_ticks_drops_stale_beyond_max_age(monkeypatch):
 
     result = await fetch_series_ticks(["688121.SH"])
     assert result == {}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("batch", [False, True])
+async def test_stale_suffix_falls_back_to_fresh_legacy(monkeypatch, batch):
+    now = 1_000_000.0
+    monkeypatch.setattr(quote_mod.time, "time", lambda: now)
+    stale = [(json.dumps({"price": 10}), now - 400)]
+    fresh = [(json.dumps({"price": 12}), now - 20)]
+    client = MagicMock()
+    client.zrevrange = AsyncMock(side_effect=[stale, fresh])
+    first, second = MagicMock(), MagicMock()
+    first.execute = AsyncMock(return_value=[stale, []])
+    second.execute = AsyncMock(return_value=[fresh, []])
+    client.pipeline.side_effect = [first, second]
+    monkeypatch.setattr(quote_mod, "_get_client", lambda: client)
+
+    if batch:
+        tick = (await fetch_series_ticks(["603968.SH"], max_age_sec=300))["603968.SH"]
+        second.zrevrange.assert_called_once_with(
+            "market:series:SH603968", 0, 0, withscores=True
+        )
+    else:
+        tick = await fetch_series_tick("603968.SH", max_age_sec=300)
+        assert client.zrevrange.await_args_list[1].args[0] == "market:series:SH603968"
+    assert tick["price"] == 12
+    assert tick["age_s"] == 20

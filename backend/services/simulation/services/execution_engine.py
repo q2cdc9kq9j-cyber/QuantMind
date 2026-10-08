@@ -21,6 +21,7 @@ from backend.services.simulation.services.simulation_manager import (
 )
 from backend.services.trade_shared.trade_config import settings
 from backend.shared.auth import get_internal_call_secret
+from backend.shared.stock_utils import StockCodeUtil
 from backend.shared.utc_datetime import utc_now
 from backend.shared.trade_account_cache import (
     write_json_cache,
@@ -330,14 +331,18 @@ return tostring(granted)
         except Exception as e:
             logger.warning("Failed to fetch redis series quote for %s: %s", symbol, e)
 
-        # Level 1: 实时行情服务
+        # Level 1: 实时行情服务。A 股显式读 Redis 快照，不能回退到 QuantDB 日线。
         try:
             client = await self._http_client()
             headers = {"X-Internal-Call": get_internal_call_secret()}
             if user_id is not None:
                 headers["X-User-Id"] = str(user_id)
                 headers["X-Tenant-Id"] = str(tenant_id or "default")
-            resp = await client.get(endpoint, headers=headers)
+            params = {"use_cache": "false"}
+            _, exchange = StockCodeUtil.split_suffix(StockCodeUtil.normalize(symbol))
+            if exchange in {"SH", "SZ", "BJ"}:
+                params["source"] = "remote_redis"
+            resp = await client.get(endpoint, headers=headers, params=params)
             if resp.status_code == 200:
                 data = resp.json()
                 age_seconds = self._quote_age_seconds(data)
