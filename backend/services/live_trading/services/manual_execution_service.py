@@ -2765,7 +2765,7 @@ class ManualExecutionService:
                 protect_price_ratio = _manual_task_agent_protect_price_ratio()
                 order_type = "MARKET"
                 quantity = _to_int(row.get("quantity"), 0)
-                # 模拟模式无 QMT Agent 临门查价，直接使用预案参考价成交。
+                # 模拟市价单由撮合引擎按实时行情定价；预案价格仅作参考。
                 order_price = 0.0 if trading_mode == "REAL" else preview_price
 
                 order_payload = {
